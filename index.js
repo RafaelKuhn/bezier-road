@@ -4,27 +4,78 @@ const canvas = document.getElementById("canvao");
 
 /** @type {CanvasRenderingContext2D} */
 const ctx = canvas.getContext("2d");
-
 const canvasRect = canvas.getBoundingClientRect();
 
+const spanN = document.getElementById("n");
+const spanH = document.getElementById("h");
+const nSlider = document.getElementById("nSlider");
+const nStart = nSlider.value;
+console.log("default is " + nStart);
+
+// constants
 const TAU = 6.28318530;
 
 const pointSize = 7;
-// const coordinateSystemMax = 16;
 const coordinateSystemMax = 8;
 
 // Points for the curve
-let start = { x: 54,  y: 260 };
-let end =   { x: 511, y: 339 };
-let cp1 =   { x: 120, y: 501 };
-let cp2 =   { x: 442, y: 91  };
+const start = { x: 75,  y: 262.5 };
+const end =   { x: 525, y: 337.5 };
+const cp1 =   { x: 150, y: 525 };
+const cp2 =   { x: 450, y: 75  };
 
-/** @type {{ isHolding: boolean, objBeingHold: { x: Number, y: Number } }} */
-const mouseData = {
-	isHolding: false,
-	objBeingHold: null,
+/** @param {{ x: Number, y: Number }} point */
+const getCoordinateSystemXFromPoint = (point) => {
+	return (point.x / canvas.width) * coordinateSystemMax;
 }
 
+/** @param {{ x: Number, y: Number }} point */
+const getCoordinateSystemYFromPoint = (point) => {
+	return coordinateSystemMax - (point.y / canvas.height) * coordinateSystemMax;
+}
+
+// maths
+const calculateHForN = (n) => {
+	const b = getCoordinateSystemXFromPoint(end);
+	const a = getCoordinateSystemXFromPoint(start);
+	return Math.abs(b - a) / n;
+}
+
+const mathData = {
+	n: nStart,
+	h: calculateHForN(nStart),
+}
+
+const updateMathData = () => {
+	mathData.n = nSlider.value;
+	mathData.h = calculateHForN(mathData.n);
+}
+
+/** @returns {boolean} */
+const getIsValidArea = () => {
+	const maxXVertices = Math.max(start.x, end.x);
+	const minXVertices = Math.min(start.x, end.x);
+	return cp1.x > minXVertices
+		&& cp2.x > minXVertices
+		&& cp1.x < maxXVertices
+		&& cp2.x < maxXVertices;
+}
+
+
+/** 
+ * @type {{
+ * isHolding: boolean,
+ * objBeingHeld: { x: Number, y: Number }
+ * isValid : boolean
+ * }}
+ */
+const gameData = {
+	isHolding: false,
+	objBeingHeld: null,
+	isValid: getIsValidArea(),
+}
+
+/** @return {Number} */
 const clamp = (x, min, max) => {
 	return Math.max(min, Math.min(x, max));
 }
@@ -44,17 +95,16 @@ const getClampedRelativeMousePos = (event) => {
 const onMouseDown = (event) => {
 	const mousePos = getClampedRelativeMousePos(event);
 
-	mouseData.objBeingHold = getNearbyClosestObjectOrNull(mousePos);
-	mouseData.isHolding = mouseData.objBeingHold != null;
+	gameData.objBeingHeld = getNearbyClosestObjectOrNull(mousePos);
+	gameData.isHolding = gameData.objBeingHeld != null;
+	gameData.isValid = getIsValidArea();
 
 	mouseMove(event);
 }
 
-
-// /** @param {MouseEvent} event */
 const onMouseUp = () => {
-	mouseData.isHolding = false;
-	mouseData.objBeingHold = null;
+	gameData.isHolding = false;
+	gameData.objBeingHeld = null;
 }
 
 /** @param {MouseEvent} event */
@@ -64,12 +114,15 @@ const mouseMove = (event) => {
 	const objectBeingHovered = getNearbyClosestObjectOrNull(mousePos);
 	document.body.style.cursor = objectBeingHovered == null ? "default" : "pointer";
 
-	if (!mouseData.isHolding)	return;
+	if (!gameData.isHolding)	return;
 
-	mouseData.objBeingHold.x = mousePos.x;
-	mouseData.objBeingHold.y = mousePos.y;
+	gameData.objBeingHeld.x = mousePos.x;
+	gameData.objBeingHeld.y = mousePos.y;
+	gameData.isValid = getIsValidArea();
 
 	drawStuff();
+	updateMathData();
+	updateDom();
 }
 
 /**
@@ -81,6 +134,7 @@ const distanceTo = (point0, point1) => {
 	return Math.sqrt(pointsVec.x * pointsVec.x + pointsVec.y * pointsVec.y);
 }
 
+// HTML
 /** @param {{ x: Number, y: Number }} mousePos */
 const getNearbyClosestObjectOrNull = (mousePos) => {
 	if (distanceTo(mousePos, start) < 20) return start;
@@ -91,25 +145,48 @@ const getNearbyClosestObjectOrNull = (mousePos) => {
 	return null;
 }
 
+const coordinateSystemMarkLength = 10;
+
 const drawStuff = () => {
+	// reset
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
 	ctx.setLineDash([0]);
 	ctx.lineWidth = 3;
 
+	const period = canvas.width / coordinateSystemMax;
 
+	// draw grid
+	ctx.lineWidth = 1;
+	ctx.strokeStyle = "#d3d3d3";
+	for (let i = 1; i < coordinateSystemMax; ++i) {
+		const ourPeriod = period * i;
+
+		// horizontal cartesian coordinates
+		ctx.beginPath();
+		ctx.moveTo(ourPeriod, 0);
+		ctx.lineTo(ourPeriod, canvas.height);
+		ctx.stroke();
+		
+		// vertical cartesian coordinates
+		ctx.beginPath();
+		ctx.moveTo(0, ourPeriod);
+		ctx.lineTo(canvas.width, ourPeriod);
+		ctx.stroke();
+	}
+
+	// draw cartesian coordinates
 	ctx.lineWidth = 2;
-	ctx.setLineDash([0]);
+	ctx.strokeStyle = "black";
 	ctx.fillStyle = "black";
 	ctx.font = "24px serif";
 
-	const period = canvas.width / coordinateSystemMax;
 	for (let i = 1; i < coordinateSystemMax; ++i) {
 		const ourPeriod = period * i;
 
 		// horizontal cartesian coordinates
 		ctx.beginPath();
 		ctx.moveTo(ourPeriod, canvas.height);
-		ctx.lineTo(ourPeriod, canvas.height - 10);
+		ctx.lineTo(ourPeriod, canvas.height - coordinateSystemMarkLength);
 		ctx.stroke();
 		
 		ctx.fillText(i, ourPeriod - 6, canvas.height - 15);
@@ -117,14 +194,14 @@ const drawStuff = () => {
 		// vertical cartesian coordinates
 		ctx.beginPath();
 		ctx.moveTo(0, ourPeriod);
-		ctx.lineTo(10, ourPeriod);
+		ctx.lineTo(coordinateSystemMarkLength, ourPeriod);
 		ctx.stroke();
 
 		ctx.fillText(i, 15, canvas.height - ourPeriod + 6);
 	}
 
-
-	// cubic Bézier curve
+	// cubic bézier curve
+	ctx.strokeStyle = gameData.isValid ? "black" : "red";
 	ctx.beginPath();
 	ctx.moveTo(start.x, start.y);
 	ctx.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, end.x, end.y);
@@ -132,7 +209,8 @@ const drawStuff = () => {
 
 	// dashed lines
 	ctx.setLineDash([5, 7]);
-	
+	ctx.strokeStyle = "black";
+
 	ctx.beginPath();
 	ctx.moveTo(start.x, start.y)
 	ctx.lineTo(cp1.x, cp1.y)
@@ -156,22 +234,24 @@ const drawStuff = () => {
 	ctx.arc(cp1.x, cp1.y, pointSize, 0, TAU);
 	ctx.arc(cp2.x, cp2.y, pointSize, 0, TAU);
 	ctx.fill();
+}
 
-	// determine if it's valid
-	const maxXVertices = Math.max(start.x, end.x);
-	const minXVertices = Math.min(start.x, end.x);
-	const isValid = cp1.x > minXVertices
-	&& cp2.x > minXVertices
-	&& cp1.x < maxXVertices
-	&& cp2.x < maxXVertices;
+const updateDom = () => {
+	spanN.textContent = mathData.n;
+	spanH.textContent = mathData.h.toFixed(4);
 
-	canvas.style.backgroundColor = isValid ? "beige" : "magenta";
-
-	
 }
 
 window.addEventListener("mousedown", onMouseDown)
 window.addEventListener("mouseup",   onMouseUp)
 window.addEventListener("mousemove", mouseMove)
 
+nSlider.addEventListener("mousemove", () => {
+	drawStuff();
+	updateMathData();
+	updateDom();	
+})
+
 drawStuff();
+updateMathData();
+updateDom();
