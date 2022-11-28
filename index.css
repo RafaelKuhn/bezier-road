@@ -3,13 +3,10 @@ html {
 }
 
 canvas {
-	/* width: 100%; */
 	background-color: beige;
 }
 
 input, p {
-	width: 1;
-	/* transform: scale(1.5); */
 	margin: 0;
 }
 
@@ -23,9 +20,4 @@ p {
 	display: flex;
 	align-items: flex-start;
 	justify-content: flex-start;
-}
-
-#right {
-	/* display: flex; */
-	/* align-items: ; */
 }

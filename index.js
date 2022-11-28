@@ -8,16 +8,18 @@ const canvasRect = canvas.getBoundingClientRect();
 
 const spanN = document.getElementById("n");
 const spanH = document.getElementById("h");
+const spanArea = document.getElementById("area");
 const nSlider = document.getElementById("nSlider");
 const nStart = nSlider.value;
-console.log("default is " + nStart);
 
 // constants
 const TAU = 6.28318530;
-
-const pointSize = 7;
+const NAN = + +'javascript é uma merda kkkkkk';
 const coordinateSystemMax = 8;
 
+//  ########################################################################
+//  ############################### Bezier #################################
+//  ########################################################################
 // Points for the curve
 const start = { x: 75,  y: 262.5 };
 const end =   { x: 525, y: 337.5 };
@@ -32,6 +34,25 @@ const getCoordinateSystemXFromPoint = (point) => {
 /** @param {{ x: Number, y: Number }} point */
 const getCoordinateSystemYFromPoint = (point) => {
 	return coordinateSystemMax - (point.y / canvas.height) * coordinateSystemMax;
+}
+
+const lerp = (a, b, t) => t * a * (1 - t) + t * b;
+const inverseLerp = (a, b, v) => (v - a) / (b - a);
+
+const bissection = () => {
+	// tODO:
+}
+
+/**
+ * @param {Number} x 
+ * @returns {Number}
+ */
+const sampleCurveAt = (x) => {
+	// const t = X(t) = (1-t)^3 * X0 + 3*(1-t)^2 * t * X1 + 3*(1-t) * t^2 * X2 + t^3 * X3
+	// const t = ()
+	// const p0 = {  }
+
+	return 0
 }
 
 // maths
@@ -51,6 +72,18 @@ const updateMathData = () => {
 	mathData.h = calculateHForN(mathData.n);
 }
 
+const calculateArea = () => {
+	const halfH = mathData.h * 0.5;
+	// let aggr = ;
+
+	const lastElement = mathData.n - 1;
+	for (let i = 1; i < lastElement; ++i) {
+		// aggr
+	}
+
+	return "TODO"
+}
+
 /** @returns {boolean} */
 const getIsValidArea = () => {
 	const maxXVertices = Math.max(start.x, end.x);
@@ -61,7 +94,9 @@ const getIsValidArea = () => {
 		&& cp2.x < maxXVertices;
 }
 
-
+//  ########################################################################
+//  ############################## Graphics ################################
+//  ########################################################################
 /** 
  * @type {{
  * isHolding: boolean,
@@ -120,9 +155,7 @@ const mouseMove = (event) => {
 	gameData.objBeingHeld.y = mousePos.y;
 	gameData.isValid = getIsValidArea();
 
-	drawStuff();
-	updateMathData();
-	updateDom();
+	render();
 }
 
 /**
@@ -134,18 +167,22 @@ const distanceTo = (point0, point1) => {
 	return Math.sqrt(pointsVec.x * pointsVec.x + pointsVec.y * pointsVec.y);
 }
 
-// HTML
+
 /** @param {{ x: Number, y: Number }} mousePos */
 const getNearbyClosestObjectOrNull = (mousePos) => {
 	if (distanceTo(mousePos, start) < 20) return start;
 	if (distanceTo(mousePos, cp1) < 20)   return cp1;
 	if (distanceTo(mousePos, cp2) < 20)   return cp2;
 	if (distanceTo(mousePos, end) < 20)   return end;
-
+	
 	return null;
 }
 
+//  ########################################################################
+//  ################################ HTML ##################################
+//  ########################################################################
 const coordinateSystemMarkLength = 10;
+const pointSize = 7;
 
 const drawStuff = () => {
 	// reset
@@ -238,20 +275,21 @@ const drawStuff = () => {
 
 const updateDom = () => {
 	spanN.textContent = mathData.n;
-	spanH.textContent = mathData.h.toFixed(4);
-
+	spanH.textContent = gameData.isValid ? mathData.h.toFixed(4) : NAN;
+	spanH.style.color = gameData.isValid ? "black" : "red";
+	spanArea.textContent = calculateArea();
 }
 
-window.addEventListener("mousedown", onMouseDown)
-window.addEventListener("mouseup",   onMouseUp)
-window.addEventListener("mousemove", mouseMove)
-
-nSlider.addEventListener("mousemove", () => {
+const render = () => {
 	drawStuff();
 	updateMathData();
-	updateDom();	
-})
+	updateDom();
+}
 
-drawStuff();
-updateMathData();
-updateDom();
+window.addEventListener("mousedown", onMouseDown);
+window.addEventListener("mouseup",   onMouseUp);
+window.addEventListener("mousemove", mouseMove);
+
+nSlider.addEventListener("mousemove", render);
+
+render();
