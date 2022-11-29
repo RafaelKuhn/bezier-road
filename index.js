@@ -1,4 +1,7 @@
 
+//  ########################################################################
+//  ################################ HTML ##################################
+//  ########################################################################
 /** @type {HTMLCanvasElement} */
 const canvas = document.getElementById("canvao");
 
@@ -10,7 +13,35 @@ const spanN = document.getElementById("n");
 const spanH = document.getElementById("h");
 const spanArea = document.getElementById("area");
 const nSlider = document.getElementById("nSlider");
+const samplesDiv = document.getElementById("samplesDiv");
+const samplesContainer = document.getElementById("samples");
+
+const nMax = nSlider.max;
 const nStart = nSlider.value;
+
+const samplePElements = [];
+
+const createPForSample = () => {
+	const p = document.createElement("p");
+	p.classList.add("center");
+	
+	return p;
+}
+
+const updateP = (i, x, y) => {
+	samplePElements[i].textContent = `${x.toFixed(4)} | ${y.toFixed(4)}`;
+}
+
+const setPasBlank = (i) => {
+	samplePElements[i].textContent = "";
+}
+
+for (let i = 0; i < nMax; ++i) {
+	const p = createPForSample();
+	samplePElements.push(p);
+	samplesContainer.appendChild(p)
+}
+
 
 // constants
 const TAU = 6.28318530;
@@ -18,7 +49,7 @@ const NAN = + +'javascript é uma merda kkkkkk';
 const coordinateSystemMax = 8;
 
 //  ########################################################################
-//  ############################### Bezier #################################
+//  ############################### Beziér #################################
 //  ########################################################################
 // Points for the curve
 const start = { x: 75,  y: 262.5 }; // 1.0, 4.5
@@ -41,7 +72,7 @@ const lerp = (a, b, t) => (1 - t) * a + t * b;
 const inverseLerp = (a, b, v) => (v - a) / (b - a);
 
 const gridXToLocal = (x) => x / canvas.width  * coordinateSystemMax;
-const gridYToLocalInvert = (y) => coordinateSystemMax - (y / canvas.height * coordinateSystemMax);
+const gridYToLocal = (y) => coordinateSystemMax - (y / canvas.height * coordinateSystemMax);
 
 /** @param {Number} x */
 const bissectionYForX = (x) => {
@@ -171,17 +202,6 @@ const updateMathData = () => {
 	mathData.h = calculateHForN(mathData.n);
 }
 
-const calculateArea = () => {
-	const halfH = mathData.h * 0.5;
-	// let aggr = ;
-
-	const lastElement = mathData.n - 1;
-	for (let i = 1; i < lastElement; ++i) {
-		// aggr
-	}
-
-	return "TODO"
-}
 
 /** @returns {boolean} */
 const getIsValidArea = () => {
@@ -358,7 +378,12 @@ const drawStuff = () => {
 		
 		let lastX = xStart;
 		let lastY = bissectY(lastX);
-		let area = gridYToLocalInvert(lastY);
+		
+		// AREA / DOM
+		const firstY = gridYToLocal(lastY);
+		let area = firstY;
+		updateP(0, gridXToLocal(xStart), firstY);
+
 
 		// first trapezoid
 		ctx.beginPath();
@@ -386,7 +411,10 @@ const drawStuff = () => {
 			lastX = x;
 			lastY = y;
 
-			area += (gridYToLocalInvert(y) * 2);
+			// AREA / DOM
+			const localY = gridYToLocal(y);
+			area += (localY * 2);
+			updateP(i, gridXToLocal(x), localY);
 		}
 
 		const x = lerp(xStart, xEnd, 1);
@@ -403,11 +431,20 @@ const drawStuff = () => {
 		ctx.lineTo(x, y)
 		ctx.stroke();
 
-		area += gridYToLocalInvert(y);
+		// AREA / DOM
+		const lastLocalY = gridYToLocal(y);
+		area += lastLocalY;
 		area *= mathData.h * 0.5;
 
 		spanArea.style.color = "black";
 		spanArea.textContent = area.toFixed(4);
+
+		updateP(lastN, gridXToLocal(x), lastLocalY);
+
+		for (let i = lastN + 1; i < nMax; ++i) {
+			setPasBlank(i);
+		}
+
 	} else {
 		spanArea.style.color = "red";
 		spanArea.textContent = NAN;
@@ -457,8 +494,17 @@ const drawStuff = () => {
 
 const updateDom = () => {
 	spanN.textContent = mathData.n - 1;
-	spanH.textContent = gameData.isValid ? mathData.h.toFixed(4) : NAN;
-	spanH.style.color = gameData.isValid ? "black" : "red";
+	if (gameData.isValid) {
+		spanH.textContent = mathData.h.toFixed(4);
+		spanH.style.color = "black";
+		samplesDiv.style.display = "block";
+	}
+	
+	else {
+		spanH.textContent	= NAN;
+		spanH.style.color = "red"
+		samplesDiv.style.display = "none";
+	}
 }
 
 const render = () => {
@@ -467,6 +513,9 @@ const render = () => {
 	updateDom();
 }
 
+//  ########################################################################
+//  ############################# BOOTSTRAP ################################
+//  ########################################################################
 window.addEventListener("mousedown", onMouseDown);
 window.addEventListener("mouseup",   onMouseUp);
 window.addEventListener("mousemove", mouseMove);
