@@ -21,10 +21,11 @@ const coordinateSystemMax = 8;
 //  ############################### Bezier #################################
 //  ########################################################################
 // Points for the curve
-const start = { x: 75,  y: 262.5 };
-const end =   { x: 525, y: 337.5 };
-const cp1 =   { x: 150, y: 525 };
-const cp2 =   { x: 450, y: 75  };
+const start = { x: 75,  y: 262.5 }; // 1.0, 4.5
+const end =   { x: 525, y: 337.5 }; // 7.0, 3.5
+const cp1 =   { x: 150, y: 525 };   // 2.0, 1.0
+// const cp1 =   { x: 225, y: 450 };   // 3.0, 2.0
+const cp2 =   { x: 450, y: 75  };   // 6.0, 7.0
 
 /** @param {{ x: Number, y: Number }} point */
 const getCoordinateSystemXFromPoint = (point) => {
@@ -36,23 +37,120 @@ const getCoordinateSystemYFromPoint = (point) => {
 	return coordinateSystemMax - (point.y / canvas.height) * coordinateSystemMax;
 }
 
-const lerp = (a, b, t) => t * a * (1 - t) + t * b;
+const lerp = (a, b, t) => (1 - t) * a + t * b;
 const inverseLerp = (a, b, v) => (v - a) / (b - a);
 
-const bissection = () => {
-	// tODO:
+const gridXToLocal = (x) => x / canvas.width * coordinateSystemMax;
+
+/** @param {Number} x */
+const bissectionYForX = (x) => {
+	x = gridXToLocal(x);
+	
+	let bisectionLow  = 0;
+	let bisectionHigh = 1;
+	let bisectionMid = 0.5;
+
+	let xSample = gridXToLocal(sampleCurveXAt(bisectionMid));
+	for (let i = 0; i < 50; ++i) {
+
+		const difference = Math.abs(xSample - x);
+		if (difference < 0.0001) {
+			// console.log(`took ${i} to find t: ${bisectionMid}\nx: ${xSample} ~= ${x}\ny: ${sampleCurveYAt(bisectionMid)}`);
+			return sampleCurveYAt(bisectionMid);
+		}
+
+		bisectionMid = (bisectionHigh + bisectionLow) * 0.5;
+		xSample = gridXToLocal(sampleCurveXAt(bisectionMid));
+
+		if (xSample > x)
+			bisectionHigh = bisectionMid;
+		else
+			bisectionLow  = bisectionMid;
+	}
+
+	return sampleCurveYAt(bisectionMid);
+}
+
+/** @param {Number} x */
+const invertedBissectionYForX = (x) => {
+	x = gridXToLocal(x);
+	
+	let bisectionLow  = 0;
+	let bisectionHigh = 1;
+	let bisectionMid = 0.5;
+
+	let xSample = gridXToLocal(sampleCurveXAt(1 - bisectionMid));
+	for (let i = 0; i < 50; ++i) {
+
+		const difference = Math.abs(xSample - x);
+		if (difference < 0.0001) {
+			return sampleCurveYAt(1 - bisectionMid);
+		}
+
+		bisectionMid = (bisectionHigh + bisectionLow) * 0.5;
+		xSample = gridXToLocal(sampleCurveXAt(1 - bisectionMid));
+
+		if (xSample > x)
+			bisectionHigh = bisectionMid;
+		else
+			bisectionLow  = bisectionMid;
+	}
+
+	return sampleCurveYAt(1 - bisectionMid);
 }
 
 /**
  * @param {Number} x 
  * @returns {Number}
  */
-const sampleCurveAt = (x) => {
-	// const t = X(t) = (1-t)^3 * X0 + 3*(1-t)^2 * t * X1 + 3*(1-t) * t^2 * X2 + t^3 * X3
-	// const t = ()
-	// const p0 = {  }
+const sampleCurveAt = (t) => {
+	const t2 = t * t;
+	const t3 = t2 * t;
 
-	return 0
+	const bernstein0 =   -t3 + 3*t2 - 3*t + 1;
+	const bernstein1 =  3*t3 - 6*t2 + 3*t;
+	const bernstein2 = -3*t3 + 3*t2;
+	const bernstein3 =    t3;
+
+	const newX = start.x * bernstein0 +
+	               cp1.x * bernstein1 +
+							   cp2.x * bernstein2 +
+							   end.x * bernstein3;
+
+	const newY = start.y * bernstein0 +
+	               cp1.y * bernstein1 +
+							   cp2.y * bernstein2 +
+							   end.y * bernstein3;
+
+	return { x: newX, y: newY };
+}
+
+const sampleCurveYAt = (t) => {
+	const t2 = t * t;
+	const t3 = t2 * t;
+
+	const bernstein0 =   -t3 + 3*t2 - 3*t + 1;
+	const bernstein1 =  3*t3 - 6*t2 + 3*t;
+	const bernstein2 = -3*t3 + 3*t2;
+	const bernstein3 =    t3;
+	return start.y * bernstein0 +
+		cp1.y * bernstein1 +
+		cp2.y * bernstein2 +
+		end.y * bernstein3;
+}
+
+const sampleCurveXAt = (t) => {
+	const t2 = t * t;
+	const t3 = t2 * t;
+
+	const bernstein0 =   -t3 + 3*t2 - 3*t + 1;
+	const bernstein1 =  3*t3 - 6*t2 + 3*t;
+	const bernstein2 = -3*t3 + 3*t2;
+	const bernstein3 =    t3;
+	return start.x * bernstein0 +
+		cp1.x * bernstein1 +
+		cp2.x * bernstein2 +
+		end.x * bernstein3;
 }
 
 // maths
@@ -190,33 +288,124 @@ const drawStuff = () => {
 	ctx.setLineDash([0]);
 	ctx.lineWidth = 3;
 
-	const period = canvas.width / coordinateSystemMax;
-
 	// draw grid
+	const period = canvas.width / coordinateSystemMax;
 	ctx.lineWidth = 1;
 	ctx.strokeStyle = "#d3d3d3";
 	for (let i = 1; i < coordinateSystemMax; ++i) {
 		const ourPeriod = period * i;
 
-		// horizontal cartesian coordinates
+		// horizontal gray lines
 		ctx.beginPath();
 		ctx.moveTo(ourPeriod, 0);
 		ctx.lineTo(ourPeriod, canvas.height);
 		ctx.stroke();
 		
-		// vertical cartesian coordinates
+		// vertical gray lines
 		ctx.beginPath();
 		ctx.moveTo(0, ourPeriod);
 		ctx.lineTo(canvas.width, ourPeriod);
 		ctx.stroke();
 	}
 
-	// draw cartesian coordinates
+
+	// cubic bézier curve
+	ctx.lineWidth = 3;
+	ctx.strokeStyle = gameData.isValid ? "black" : "red";
+	ctx.beginPath();
+	ctx.moveTo(start.x, start.y);
+	ctx.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, end.x, end.y);
+	ctx.stroke();
+
+	// dashed lines
+	ctx.lineWidth = 2;
+	ctx.setLineDash([5, 7]);
+	ctx.strokeStyle = "black";
+
+	ctx.beginPath();
+	ctx.moveTo(start.x, start.y)
+	ctx.lineTo(cp1.x, cp1.y)
+	ctx.stroke();
+
+	ctx.beginPath();
+	ctx.moveTo(end.x, end.y)
+	ctx.lineTo(cp2.x, cp2.y)
+	ctx.stroke();
+
+	// point in the middle
+	ctx.setLineDash([0]);
+	const point = sampleCurveAt(0.5);
+	ctx.beginPath();
+	ctx.arc(point.x, point.y, pointSize, 0, TAU);
+	ctx.stroke();
+
+
+	// TODO: update area
+	// trapezoid boxes
+	if (gameData.isValid) {
+		ctx.lineWidth = 2;
+		ctx.strokeStyle = "#00c380";
+		const lastN = mathData.n - 1;
+
+		let xStart = start.x;
+		let xEnd   = end.x;
+		let bissectY = bissectionYForX;
+		if (xStart > xEnd) {
+			[xStart, xEnd] = [xEnd, xStart];
+			bissectY = invertedBissectionYForX;
+		}
+		
+		let lastX = xStart;
+		let lastY = bissectY(lastX);
+
+		ctx.beginPath();
+		ctx.moveTo(xStart, canvas.width)
+		ctx.lineTo(lastX, lastY)
+		ctx.stroke();
+
+		for (let i = 1; i < mathData.n; ++i) {
+			const percentage = i / lastN;
+			
+			// const localX = lerp(xStart, xEnd, percentage);
+			// const x = localX / coordinateSystemMax * canvas.width;
+			const x = lerp(xStart, xEnd, percentage);
+			const y = bissectY(x);
+
+			ctx.beginPath();
+			ctx.moveTo(x, canvas.width)
+			ctx.lineTo(x, y)
+			ctx.stroke();
+
+			ctx.beginPath();
+			ctx.moveTo(lastX, lastY)
+			ctx.lineTo(x, y)
+			ctx.stroke();
+
+			lastX = x;
+			lastY = y;
+		}
+	}
+
+
+	// start and end points
+	ctx.fillStyle = "blue";
+	ctx.beginPath();
+	ctx.arc(start.x, start.y, pointSize, 0, TAU);
+	ctx.arc(end.x,   end.y,   pointSize, 0, TAU);
+	ctx.fill();
+
+	// control points
+	ctx.fillStyle = "red";
+	ctx.beginPath();
+	ctx.arc(cp1.x, cp1.y, pointSize, 0, TAU);
+	ctx.arc(cp2.x, cp2.y, pointSize, 0, TAU);
+	ctx.fill();
+
+	// cartesian coordinates
 	ctx.lineWidth = 2;
 	ctx.strokeStyle = "black";
 	ctx.fillStyle = "black";
 	ctx.font = "24px serif";
-
 	for (let i = 1; i < coordinateSystemMax; ++i) {
 		const ourPeriod = period * i;
 
@@ -236,48 +425,13 @@ const drawStuff = () => {
 
 		ctx.fillText(i, 15, canvas.height - ourPeriod + 6);
 	}
-
-	// cubic bézier curve
-	ctx.strokeStyle = gameData.isValid ? "black" : "red";
-	ctx.beginPath();
-	ctx.moveTo(start.x, start.y);
-	ctx.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, end.x, end.y);
-	ctx.stroke();
-
-	// dashed lines
-	ctx.setLineDash([5, 7]);
-	ctx.strokeStyle = "black";
-
-	ctx.beginPath();
-	ctx.moveTo(start.x, start.y)
-	ctx.lineTo(cp1.x, cp1.y)
-	ctx.stroke();
-
-	ctx.beginPath();
-	ctx.moveTo(end.x, end.y)
-	ctx.lineTo(cp2.x, cp2.y)
-	ctx.stroke();
-
-	// start and end points
-	ctx.fillStyle = "blue";
-	ctx.beginPath();
-	ctx.arc(start.x, start.y, pointSize, 0, TAU);
-	ctx.arc(end.x,   end.y,   pointSize, 0, TAU);
-	ctx.fill();
-
-	// control points
-	ctx.fillStyle = "red";
-	ctx.beginPath();
-	ctx.arc(cp1.x, cp1.y, pointSize, 0, TAU);
-	ctx.arc(cp2.x, cp2.y, pointSize, 0, TAU);
-	ctx.fill();
+	
 }
 
 const updateDom = () => {
 	spanN.textContent = mathData.n;
 	spanH.textContent = gameData.isValid ? mathData.h.toFixed(4) : NAN;
 	spanH.style.color = gameData.isValid ? "black" : "red";
-	spanArea.textContent = calculateArea();
 }
 
 const render = () => {
