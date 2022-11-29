@@ -40,7 +40,8 @@ const getCoordinateSystemYFromPoint = (point) => {
 const lerp = (a, b, t) => (1 - t) * a + t * b;
 const inverseLerp = (a, b, v) => (v - a) / (b - a);
 
-const gridXToLocal = (x) => x / canvas.width * coordinateSystemMax;
+const gridXToLocal = (x) => x / canvas.width  * coordinateSystemMax;
+const gridYToLocalInvert = (y) => coordinateSystemMax - (y / canvas.height * coordinateSystemMax);
 
 /** @param {Number} x */
 const bissectionYForX = (x) => {
@@ -157,7 +158,7 @@ const sampleCurveXAt = (t) => {
 const calculateHForN = (n) => {
 	const b = getCoordinateSystemXFromPoint(end);
 	const a = getCoordinateSystemXFromPoint(start);
-	return Math.abs(b - a) / n;
+	return Math.abs(b - a) / (n - 1);
 }
 
 const mathData = {
@@ -340,13 +341,13 @@ const drawStuff = () => {
 	ctx.stroke();
 
 
-	// TODO: update area
-	// trapezoid boxes
+	// trapezoids
 	if (gameData.isValid) {
+		// setup
 		ctx.lineWidth = 2;
 		ctx.strokeStyle = "#00c380";
+		
 		const lastN = mathData.n - 1;
-
 		let xStart = start.x;
 		let xEnd   = end.x;
 		let bissectY = bissectionYForX;
@@ -357,17 +358,18 @@ const drawStuff = () => {
 		
 		let lastX = xStart;
 		let lastY = bissectY(lastX);
+		let area = gridYToLocalInvert(lastY);
 
+		// first trapezoid
 		ctx.beginPath();
 		ctx.moveTo(xStart, canvas.width)
 		ctx.lineTo(lastX, lastY)
 		ctx.stroke();
 
-		for (let i = 1; i < mathData.n; ++i) {
+		// middle trapezoids
+		for (let i = 1; i < lastN; ++i) {
 			const percentage = i / lastN;
 			
-			// const localX = lerp(xStart, xEnd, percentage);
-			// const x = localX / coordinateSystemMax * canvas.width;
 			const x = lerp(xStart, xEnd, percentage);
 			const y = bissectY(x);
 
@@ -383,7 +385,32 @@ const drawStuff = () => {
 
 			lastX = x;
 			lastY = y;
+
+			area += (gridYToLocalInvert(y) * 2);
 		}
+
+		const x = lerp(xStart, xEnd, 1);
+		const y = bissectY(x);
+
+		// last trapezoid
+		ctx.beginPath();
+		ctx.moveTo(x, canvas.width)
+		ctx.lineTo(x, y)
+		ctx.stroke();
+
+		ctx.beginPath();
+		ctx.moveTo(lastX, lastY)
+		ctx.lineTo(x, y)
+		ctx.stroke();
+
+		area += gridYToLocalInvert(y);
+		area *= mathData.h * 0.5;
+
+		spanArea.style.color = "black";
+		spanArea.textContent = area.toFixed(4);
+	} else {
+		spanArea.style.color = "red";
+		spanArea.textContent = NAN;
 	}
 
 
@@ -425,11 +452,11 @@ const drawStuff = () => {
 
 		ctx.fillText(i, 15, canvas.height - ourPeriod + 6);
 	}
-	
+
 }
 
 const updateDom = () => {
-	spanN.textContent = mathData.n;
+	spanN.textContent = mathData.n - 1;
 	spanH.textContent = gameData.isValid ? mathData.h.toFixed(4) : NAN;
 	spanH.style.color = gameData.isValid ? "black" : "red";
 }
