@@ -239,8 +239,8 @@ const clamp = (x, min, max) => {
  * @returns {{ x: Number, y: Number }}
  */
 const getClampedRelativeMousePos = (event) => {
-	const x = event.clientX - canvasRect.left;
-	const y = event.clientY - canvasRect.top;
+	const x = event.pageX - canvasRect.left;
+	const y = event.pageY - canvasRect.top;
 
 	return { x: clamp(x, 0, canvas.width), y: clamp(y, 0, canvas.height) };
 }
