@@ -51,13 +51,6 @@ const coordinateSystemMax = 8;
 //  ########################################################################
 //  ############################### Beziér #################################
 //  ########################################################################
-// Points for the curve
-const start = { x: 75,  y: 262.5 }; // 1.0, 4.5
-const end =   { x: 525, y: 337.5 }; // 7.0, 3.5
-const cp1 =   { x: 150, y: 525 };   // 2.0, 1.0
-// const cp1 =   { x: 225, y: 450 };   // 3.0, 2.0
-const cp2 =   { x: 450, y: 75  };   // 6.0, 7.0
-
 /** @param {{ x: Number, y: Number }} point */
 const getCoordinateSystemXFromPoint = (point) => {
 	return (point.x / canvas.width) * coordinateSystemMax;
@@ -71,18 +64,32 @@ const getCoordinateSystemYFromPoint = (point) => {
 const lerp = (a, b, t) => (1 - t) * a + t * b;
 const inverseLerp = (a, b, v) => (v - a) / (b - a);
 
-const gridXToLocal = (x) => x / canvas.width  * coordinateSystemMax;
-const gridYToLocal = (y) => coordinateSystemMax - (y / canvas.height * coordinateSystemMax);
+const gridToLocalMultiplier = 1 / (canvas.width  * coordinateSystemMax);
+
+const gridXToLocalX = (x) => x * gridToLocalMultiplier;
+const gridYToLocalX = (y) => coordinateSystemMax - (y * gridToLocalMultiplier);
+
+const localXToGridX = (x) => x / coordinateSystemMax * canvas.width;
+const localXToGridY = (y) => canvas.height - (y / coordinateSystemMax * canvas.height);
+
+// Points for the curve
+const start = { x: localXToGridX(1.0), y: localXToGridY(4.5) };
+const end =   { x: localXToGridX(7.0), y: localXToGridY(3.5) };
+const cp1 =   { x: localXToGridX(2.0), y: localXToGridY(1.0) };
+const cp2 =   { x: localXToGridX(6.0), y: localXToGridY(7.0) };
+
+console.log(localXToGridX(1), localXToGridY(4.5));
+console.log(gridXToLocalX(localXToGridX(1)), gridYToLocalX(localXToGridY(4.5)));
 
 /** @param {Number} x */
 const bissectionYForX = (x) => {
-	x = gridXToLocal(x);
+	x = gridXToLocalX(x);
 	
 	let bisectionLow  = 0;
 	let bisectionHigh = 1;
 	let bisectionMid = 0.5;
 
-	let xSample = gridXToLocal(sampleCurveXAt(bisectionMid));
+	let xSample = gridXToLocalX(sampleCurveXAt(bisectionMid));
 	for (let i = 0; i < 50; ++i) {
 
 		const difference = Math.abs(xSample - x);
@@ -92,7 +99,7 @@ const bissectionYForX = (x) => {
 		}
 
 		bisectionMid = (bisectionHigh + bisectionLow) * 0.5;
-		xSample = gridXToLocal(sampleCurveXAt(bisectionMid));
+		xSample = gridXToLocalX(sampleCurveXAt(bisectionMid));
 
 		if (xSample > x)
 			bisectionHigh = bisectionMid;
@@ -105,13 +112,13 @@ const bissectionYForX = (x) => {
 
 /** @param {Number} x */
 const invertedBissectionYForX = (x) => {
-	x = gridXToLocal(x);
+	x = gridXToLocalX(x);
 	
 	let bisectionLow  = 0;
 	let bisectionHigh = 1;
 	let bisectionMid = 0.5;
 
-	let xSample = gridXToLocal(sampleCurveXAt(1 - bisectionMid));
+	let xSample = gridXToLocalX(sampleCurveXAt(1 - bisectionMid));
 	for (let i = 0; i < 50; ++i) {
 
 		const difference = Math.abs(xSample - x);
@@ -120,7 +127,7 @@ const invertedBissectionYForX = (x) => {
 		}
 
 		bisectionMid = (bisectionHigh + bisectionLow) * 0.5;
-		xSample = gridXToLocal(sampleCurveXAt(1 - bisectionMid));
+		xSample = gridXToLocalX(sampleCurveXAt(1 - bisectionMid));
 
 		if (xSample > x)
 			bisectionHigh = bisectionMid;
@@ -380,9 +387,9 @@ const drawStuff = () => {
 		let lastY = bissectY(lastX);
 		
 		// AREA / DOM
-		const firstY = gridYToLocal(lastY);
+		const firstY = gridYToLocalX(lastY);
 		let area = firstY;
-		updateP(0, gridXToLocal(xStart), firstY);
+		updateP(0, gridXToLocalX(xStart), firstY);
 
 
 		// first trapezoid
@@ -412,9 +419,9 @@ const drawStuff = () => {
 			lastY = y;
 
 			// AREA / DOM
-			const localY = gridYToLocal(y);
+			const localY = gridYToLocalX(y);
 			area += (localY * 2);
-			updateP(i, gridXToLocal(x), localY);
+			updateP(i, gridXToLocalX(x), localY);
 		}
 
 		const x = lerp(xStart, xEnd, 1);
@@ -432,14 +439,14 @@ const drawStuff = () => {
 		ctx.stroke();
 
 		// AREA / DOM
-		const lastLocalY = gridYToLocal(y);
+		const lastLocalY = gridYToLocalX(y);
 		area += lastLocalY;
 		area *= mathData.h * 0.5;
 
 		spanArea.style.color = "black";
 		spanArea.textContent = area.toFixed(4);
 
-		updateP(lastN, gridXToLocal(x), lastLocalY);
+		updateP(lastN, gridXToLocalX(x), lastLocalY);
 
 		for (let i = lastN + 1; i < nMax; ++i) {
 			setPasBlank(i);
