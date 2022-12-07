@@ -9,6 +9,9 @@ const canvas = document.getElementById("canvao");
 const ctx = canvas.getContext("2d");
 const canvasRect = canvas.getBoundingClientRect();
 
+canvas.height = document.body.clientHeight - 16;
+canvas.width  = canvas.height;
+
 const spanN = document.getElementById("n");
 const spanH = document.getElementById("h");
 const spanArea = document.getElementById("area");
