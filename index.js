@@ -64,22 +64,20 @@ const getCoordinateSystemYFromPoint = (point) => {
 const lerp = (a, b, t) => (1 - t) * a + t * b;
 const inverseLerp = (a, b, v) => (v - a) / (b - a);
 
-const gridToLocalMultiplier = 1 / (canvas.width  * coordinateSystemMax);
+const gridToLocalXMultiplier = 1 / (canvas.width  * coordinateSystemMax);
+const gridToLocalYMultiplier = 1 / coordinateSystemMax * canvas.width;
 
-const gridXToLocalX = (x) => x * gridToLocalMultiplier;
-const gridYToLocalX = (y) => coordinateSystemMax - (y * gridToLocalMultiplier);
+const gridXToLocalX = (x) => x * gridToLocalXMultiplier;
+const gridYToLocalX = (y) => coordinateSystemMax - (y * gridToLocalXMultiplier);
 
-const localXToGridX = (x) => x / coordinateSystemMax * canvas.width;
-const localXToGridY = (y) => canvas.height - (y / coordinateSystemMax * canvas.height);
+const localXToGridX = (x) => x * gridToLocalYMultiplier;
+const localXToGridY = (y) => canvas.height - (y * gridToLocalYMultiplier);
 
 // Points for the curve
 const start = { x: localXToGridX(1.0), y: localXToGridY(4.5) };
 const end =   { x: localXToGridX(7.0), y: localXToGridY(3.5) };
 const cp1 =   { x: localXToGridX(2.0), y: localXToGridY(1.0) };
 const cp2 =   { x: localXToGridX(6.0), y: localXToGridY(7.0) };
-
-console.log(localXToGridX(1), localXToGridY(4.5));
-console.log(gridXToLocalX(localXToGridX(1)), gridYToLocalX(localXToGridY(4.5)));
 
 /** @param {Number} x */
 const bissectionYForX = (x) => {
