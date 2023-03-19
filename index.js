@@ -54,35 +54,23 @@ const coordinateSystemMax = 8;
 //  ########################################################################
 //  ############################### Beziér #################################
 //  ########################################################################
-/** @param {{ x: Number, y: Number }} point */
-const getCoordinateSystemXFromPoint = (point) => {
-	return (point.x / canvas.width) * coordinateSystemMax;
-}
-
-/** @param {{ x: Number, y: Number }} point */
-const getCoordinateSystemYFromPoint = (point) => {
-	return coordinateSystemMax - (point.y / canvas.height) * coordinateSystemMax;
-}
 
 const lerp = (a, b, t) => (1 - t) * a + t * b;
 const inverseLerp = (a, b, v) => (v - a) / (b - a);
 
-const gridToLocalXMultiplier = 1 / (canvas.width  * coordinateSystemMax);
-const gridToLocalYMultiplier = 1 / coordinateSystemMax * canvas.width;
+const gridXToLocalX = (x) => x / canvas.width * coordinateSystemMax;
+const gridYToLocalY = (y) => coordinateSystemMax - (y / canvas.height * coordinateSystemMax);
 
-const gridXToLocalX = (x) => x * gridToLocalXMultiplier;
-const gridYToLocalX = (y) => coordinateSystemMax - (y * gridToLocalXMultiplier);
-
-const localXToGridX = (x) => x * gridToLocalYMultiplier;
-const localXToGridY = (y) => canvas.height - (y * gridToLocalYMultiplier);
+const localXToGridX = (x) => x / coordinateSystemMax * canvas.width;
+const localYToGridY = (y) => canvas.height - (y / coordinateSystemMax * canvas.width);
 
 // Points for the curve
-const start = { x: localXToGridX(1.0), y: localXToGridY(4.5) };
-const end =   { x: localXToGridX(7.0), y: localXToGridY(3.5) };
-const cp1 =   { x: localXToGridX(2.0), y: localXToGridY(1.0) };
-const cp2 =   { x: localXToGridX(6.0), y: localXToGridY(7.0) };
+const start = { x: localXToGridX(1.0), y: localYToGridY(4.5) };
+const end =   { x: localXToGridX(7.0), y: localYToGridY(3.5) };
+const cp1 =   { x: localXToGridX(2.0), y: localYToGridY(1.0) };
+const cp2 =   { x: localXToGridX(6.0), y: localYToGridY(7.0) };
 
-/** @param {Number} x */
+/** @param {Number} x (x is in pixel coordinates) */
 const bissectionYForX = (x) => {
 	x = gridXToLocalX(x);
 	
@@ -111,7 +99,7 @@ const bissectionYForX = (x) => {
 	return sampleCurveYAt(bisectionMid);
 }
 
-/** @param {Number} x */
+/** @param {Number} x (x is in pixel coordinates) */
 const invertedBissectionYForX = (x) => {
 	x = gridXToLocalX(x);
 	
@@ -195,8 +183,8 @@ const sampleCurveXAt = (t) => {
 
 // maths
 const calculateHForN = (n) => {
-	const b = getCoordinateSystemXFromPoint(end);
-	const a = getCoordinateSystemXFromPoint(start);
+	const b = gridXToLocalX(end.x);
+	const a = gridXToLocalX(start.x);
 	return Math.abs(b - a) / (n - 1);
 }
 
@@ -376,24 +364,28 @@ const drawStuff = () => {
 		ctx.strokeStyle = "#00c380";
 		
 		const lastN = mathData.n - 1;
+		
+		// pixel coordinates
 		let xStart = start.x;
 		let xEnd   = end.x;
+		
 		let bissectY = bissectionYForX;
 		if (xStart > xEnd) {
 			[xStart, xEnd] = [xEnd, xStart];
 			bissectY = invertedBissectionYForX;
 		}
 		
+		// pixel coordinates
 		let lastX = xStart;
 		let lastY = bissectY(lastX);
 		
 		// AREA / DOM
-		const firstY = gridYToLocalX(lastY);
-		let area = firstY;
-		updateP(0, gridXToLocalX(xStart), firstY);
+		const localFirstX = gridXToLocalX(xStart);
+		const localFirstY = gridYToLocalY(lastY);
+		let area = localFirstY;
+		updateP(0, localFirstX, localFirstY);
 
-
-		// first trapezoid
+		// first line
 		ctx.beginPath();
 		ctx.moveTo(xStart, canvas.width)
 		ctx.lineTo(lastX, lastY)
@@ -420,7 +412,7 @@ const drawStuff = () => {
 			lastY = y;
 
 			// AREA / DOM
-			const localY = gridYToLocalX(y);
+			const localY = gridYToLocalY(y);
 			area += (localY * 2);
 			updateP(i, gridXToLocalX(x), localY);
 		}
@@ -440,14 +432,16 @@ const drawStuff = () => {
 		ctx.stroke();
 
 		// AREA / DOM
-		const lastLocalY = gridYToLocalX(y);
+		const lastLocalX = gridXToLocalX(x);
+		const lastLocalY = gridYToLocalY(y);
 		area += lastLocalY;
 		area *= mathData.h * 0.5;
 
 		spanArea.style.color = "black";
 		spanArea.textContent = area.toFixed(4);
 
-		updateP(lastN, gridXToLocalX(x), lastLocalY);
+		// console.log(`updating p with ${gridXToLocalX(x)}, ${lastLocalY}`);
+		updateP(lastN, lastLocalX, lastLocalY);
 
 		for (let i = lastN + 1; i < nMax; ++i) {
 			setPasBlank(i);
