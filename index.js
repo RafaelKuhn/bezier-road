@@ -12,6 +12,11 @@ const canvasRect = canvas.getBoundingClientRect();
 canvas.height = document.body.clientHeight - 16;
 canvas.width  = canvas.height;
 
+const img = new Image();
+// img.src = "serra.webp"
+img.src = "serra.jpg"
+const m = 1.3;
+
 const spanN = document.getElementById("n");
 const spanH = document.getElementById("h");
 const spanArea = document.getElementById("area");
@@ -65,10 +70,15 @@ const localXToGridX = (x) => x / coordinateSystemMax * canvas.width;
 const localYToGridY = (y) => canvas.height - (y / coordinateSystemMax * canvas.width);
 
 // Points for the curve
-const start = { x: localXToGridX(1.0), y: localYToGridY(4.5) };
-const end =   { x: localXToGridX(7.0), y: localYToGridY(3.5) };
-const cp1 =   { x: localXToGridX(2.0), y: localYToGridY(1.0) };
-const cp2 =   { x: localXToGridX(6.0), y: localYToGridY(7.0) };
+// const start = { x: localXToGridX(1.0), y: localYToGridY(4.5) };
+// const end =   { x: localXToGridX(7.0), y: localYToGridY(3.5) };
+// const cp1 =   { x: localXToGridX(2.0), y: localYToGridY(1.0) };
+// const cp2 =   { x: localXToGridX(6.0), y: localYToGridY(7.0) };
+
+const start = { x: 1110, y: 889 };
+const cp1 =   { x: 933,  y: 755 };
+const cp2 =   { x: 825,  y: 696 };
+const end =   { x: 965,  y: 547 };
 
 /** @param {Number} x (x is in pixel coordinates) */
 const bissectionYForX = (x) => {
@@ -264,11 +274,13 @@ const mouseMove = (event) => {
 	const objectBeingHovered = getNearbyClosestObjectOrNull(mousePos);
 	document.body.style.cursor = objectBeingHovered == null ? "default" : "pointer";
 
-	if (!gameData.isHolding)	return;
+	if (!gameData.isHolding) return;
 
 	gameData.objBeingHeld.x = mousePos.x;
 	gameData.objBeingHeld.y = mousePos.y;
 	gameData.isValid = getIsValidArea();
+
+	console.log(gameData.objBeingHeld);
 
 	render();
 }
@@ -300,10 +312,17 @@ const coordinateSystemMarkLength = 10;
 const pointSize = 7;
 
 const drawStuff = () => {
+
 	// reset
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
 	ctx.setLineDash([0]);
-	ctx.lineWidth = 3;
+	// ctx.lineWidth = 3;
+
+	const width  = img.width  * m;
+	const height = img.height * m;
+	canvas.width = width;
+	ctx.drawImage(img, 0, 0, width, height);
+
 
 	// draw grid
 	const period = canvas.width / coordinateSystemMax;
@@ -312,23 +331,25 @@ const drawStuff = () => {
 	for (let i = 1; i < coordinateSystemMax; ++i) {
 		const ourPeriod = period * i;
 
-		// horizontal gray lines
+		// horizontal (X) gray lines
 		ctx.beginPath();
 		ctx.moveTo(ourPeriod, 0);
 		ctx.lineTo(ourPeriod, canvas.height);
 		ctx.stroke();
 		
-		// vertical gray lines
+		// vertical (Y) gray lines
 		ctx.beginPath();
-		ctx.moveTo(0, ourPeriod);
-		ctx.lineTo(canvas.width, ourPeriod);
+		// console.log(ourPeriod, canvas.width - ourPeriod);
+		ctx.moveTo(0, canvas.width - ourPeriod);
+		ctx.lineTo(canvas.width, canvas.width - ourPeriod);
 		ctx.stroke();
 	}
 
 
 	// cubic bézier curve
 	ctx.lineWidth = 3;
-	ctx.strokeStyle = gameData.isValid ? "black" : "red";
+	// ctx.strokeStyle = gameData.isValid ? "black" : "red";
+	ctx.strokeStyle = "black";
 	ctx.beginPath();
 	ctx.moveTo(start.x, start.y);
 	ctx.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, end.x, end.y);
@@ -337,7 +358,8 @@ const drawStuff = () => {
 	// dashed lines
 	ctx.lineWidth = 2;
 	ctx.setLineDash([5, 7]);
-	ctx.strokeStyle = "black";
+	// ctx.strokeStyle = "black";
+	ctx.strokeStyle = "white";
 
 	ctx.beginPath();
 	ctx.moveTo(start.x, start.y)
@@ -357,102 +379,6 @@ const drawStuff = () => {
 	ctx.stroke();
 
 
-	// trapezoids
-	if (gameData.isValid) {
-		// setup
-		ctx.lineWidth = 2;
-		ctx.strokeStyle = "#00c380";
-		
-		const lastN = mathData.n - 1;
-		
-		// pixel coordinates
-		let xStart = start.x;
-		let xEnd   = end.x;
-		
-		let bissectY = bissectionYForX;
-		if (xStart > xEnd) {
-			[xStart, xEnd] = [xEnd, xStart];
-			bissectY = invertedBissectionYForX;
-		}
-		
-		// pixel coordinates
-		let lastX = xStart;
-		let lastY = bissectY(lastX);
-		
-		// AREA / DOM
-		const localFirstX = gridXToLocalX(xStart);
-		const localFirstY = gridYToLocalY(lastY);
-		let area = localFirstY;
-		updateP(0, localFirstX, localFirstY);
-
-		// first line
-		ctx.beginPath();
-		ctx.moveTo(xStart, canvas.width)
-		ctx.lineTo(lastX, lastY)
-		ctx.stroke();
-
-		// middle trapezoids
-		for (let i = 1; i < lastN; ++i) {
-			const percentage = i / lastN;
-			
-			const x = lerp(xStart, xEnd, percentage);
-			const y = bissectY(x);
-
-			ctx.beginPath();
-			ctx.moveTo(x, canvas.width)
-			ctx.lineTo(x, y)
-			ctx.stroke();
-
-			ctx.beginPath();
-			ctx.moveTo(lastX, lastY)
-			ctx.lineTo(x, y)
-			ctx.stroke();
-
-			lastX = x;
-			lastY = y;
-
-			// AREA / DOM
-			const localY = gridYToLocalY(y);
-			area += (localY * 2);
-			updateP(i, gridXToLocalX(x), localY);
-		}
-
-		const x = lerp(xStart, xEnd, 1);
-		const y = bissectY(x);
-
-		// last trapezoid
-		ctx.beginPath();
-		ctx.moveTo(x, canvas.width)
-		ctx.lineTo(x, y)
-		ctx.stroke();
-
-		ctx.beginPath();
-		ctx.moveTo(lastX, lastY)
-		ctx.lineTo(x, y)
-		ctx.stroke();
-
-		// AREA / DOM
-		const lastLocalX = gridXToLocalX(x);
-		const lastLocalY = gridYToLocalY(y);
-		area += lastLocalY;
-		area *= mathData.h * 0.5;
-
-		spanArea.style.color = "black";
-		spanArea.textContent = area.toFixed(4);
-
-		// console.log(`updating p with ${gridXToLocalX(x)}, ${lastLocalY}`);
-		updateP(lastN, lastLocalX, lastLocalY);
-
-		for (let i = lastN + 1; i < nMax; ++i) {
-			setPasBlank(i);
-		}
-
-	} else {
-		spanArea.style.color = "red";
-		spanArea.textContent = NAN;
-	}
-
-
 	// start and end points
 	ctx.fillStyle = "blue";
 	ctx.beginPath();
@@ -469,8 +395,8 @@ const drawStuff = () => {
 
 	// cartesian coordinates
 	ctx.lineWidth = 2;
-	ctx.strokeStyle = "black";
-	ctx.fillStyle = "black";
+	ctx.strokeStyle = "white";
+	ctx.fillStyle = "white";
 	ctx.font = "24px serif";
 	for (let i = 1; i < coordinateSystemMax; ++i) {
 		const ourPeriod = period * i;
@@ -524,4 +450,55 @@ window.addEventListener("mousemove", mouseMove);
 
 nSlider.addEventListener("mousemove", render);
 
-render();
+// render();
+
+
+const bezierIn = (start, anchor0, anchor1, end) => {
+	ctx.fillStyle = "blue";
+	ctx.lineWidth = 4;
+	ctx.beginPath();
+	ctx.arc(start.x, start.y, pointSize, 0, TAU);
+	ctx.arc(end.x,   end.y,   pointSize, 0, TAU);
+	ctx.fill();
+	
+	ctx.fillStyle = "cyan";
+	ctx.beginPath();
+	ctx.arc(anchor0.x, anchor0.y, pointSize, 0, TAU);
+	ctx.arc(anchor1.x, anchor1.y, pointSize, 0, TAU);
+	ctx.fill();
+	
+	ctx.strokeStyle = "red";
+	ctx.beginPath();
+	ctx.moveTo(start.x, start.y);
+	ctx.bezierCurveTo(anchor0.x, anchor0.y, anchor1.x, anchor1.y, end.x, end.y);
+	ctx.stroke();
+}
+
+
+img.onload = () => {
+	console.log("loaded");
+	const width  = img.width  * m;
+	const height = img.height * m;
+	canvas.width = width;
+	ctx.drawImage(img, 0, 0, width, height);
+
+	// const start = { x: canvas.width - 75, y: canvas.height - 30 }
+	// bezierIn(start, cp1, cp2, end);
+
+	render();
+
+	// ctx.fillStyle = "blue";
+	// ctx.beginPath();
+	// ctx.arc(start.x, start.y, pointSize, 0, TAU);
+	// ctx.arc(end.x,   end.y,   pointSize, 0, TAU);
+	// ctx.fill();
+
+	// ctx.beginPath();
+	// ctx.moveTo(start.x, start.y);
+	// ctx.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, end.x, end.y);
+	// ctx.stroke();
+}
+
+
+
+
