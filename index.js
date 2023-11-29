@@ -52,7 +52,7 @@ for (let i = 0; i < nMax; ++i) {
 // constants
 const TAU = 6.28318530;
 const NAN = + +'javascript é uma merda kkkkkk';
-const coordinateSystemMax = 600;
+const coordinateSystemMax = 400;
 const coordinateSystemIts = 10;
 
 //  ########################################################################
@@ -131,9 +131,8 @@ const globalEnd =   { x: spline[it - 3].x, y: spline[it - 3].y } ;
 
 
 // maths
-const pxToCoord = px => {
-	return px / canvas.width * coordinateSystemMax;
-}
+const pxToCoord = pixels => pixels / canvas.width        * coordinateSystemMax;
+const coordToPx = coords => coords / coordinateSystemMax * canvas.width;
 
 
 /** @returns {boolean} */
@@ -223,29 +222,53 @@ const bezierOf = (start, cp1, cp2, end, t, dump) => {
 	dump.y = newY;
 }
 
-// TODO: get rid of
-const bernsteinOf = (start, cp1, cp2, end, b0, b1, b2, b3, dump) => {
+const derivativeOf = (start, cp1, cp2, end, t, dump) => {
+	const t2 =  t * t;
+
+	const deriv0 = -3*t2 +  6*t - 3;
+	const deriv1 =  9*t2 - 12*t + 3;
+	const deriv2 = -9*t2 +  6*t;
+	const deriv3 =  3*t2;
+
 	const newX =
-		start.x * b0 +
-	  cp1.x   * b1 +
-		cp2.x   * b2 +
-		end.x   * b3;
+		start.x * deriv0 +
+	  cp1.x   * deriv1 +
+		cp2.x   * deriv2 +
+		end.x   * deriv3;
 
 	const newY =
-		start.y * b0 +
-	  cp1.y   * b1 +
-		cp2.y   * b2 +
-		end.y   * b3;
+		start.y * deriv0 +
+	  cp1.y   * deriv1 +
+		cp2.y   * deriv2 +
+		end.y   * deriv3;
 
 	dump.x = newX;
 	dump.y = newY;
 }
 
+// TODO: get rid of
+// const bernsteinOf = (start, cp1, cp2, end, b0, b1, b2, b3, dump) => {
+// 	const newX =
+// 		start.x * b0 +
+// 	  cp1.x   * b1 +
+// 		cp2.x   * b2 +
+// 		end.x   * b3;
+
+// 	const newY =
+// 		start.y * b0 +
+// 	  cp1.y   * b1 +
+// 		cp2.y   * b2 +
+// 		end.y   * b3;
+
+// 	dump.x = newX;
+// 	dump.y = newY;
+// }
+
 
 let ClosestPoint = null;
 
-let Start = 0;
-let End   = -1;
+let StartI = 0;
+let EndI   = -1;
 
 
 /** @param {MouseEvent} event */
@@ -259,7 +282,7 @@ const mouseMove = (event) => {
 
 	let index = 0;
 	ClosestPoint = firstPoint;
-	Start = index;
+	StartI = index;
 
 	let currentFirstPoint = firstPoint;
 
@@ -274,8 +297,8 @@ const mouseMove = (event) => {
 			ClosestPoint = currentFirstPoint;
 			minDistSq = distToIthSq;
 			index = i;
-			Start = Math.max(i - 1 - 3, 0);
-			End = i + 2;
+			StartI = Math.max(i - 1 - 3, 0);
+			EndI = i + 2;
 		}
 
 		// const start = spline[i - 3];
@@ -294,8 +317,8 @@ const mouseMove = (event) => {
 			ClosestPoint = { x: dumpMiddlePoint.x, y: dumpMiddlePoint.y };
 			minDistSq = distToSample0;
 			index = i;
-			Start = i - 1;
-			End = i + 2;
+			StartI = i - 1;
+			EndI = i + 2;
 		}
 
 		bezierOf(start, cp1, cp2, end, 0.4, dumpMiddlePoint);
@@ -304,8 +327,8 @@ const mouseMove = (event) => {
 			ClosestPoint = { x: dumpMiddlePoint.x, y: dumpMiddlePoint.y };
 			minDistSq = distToSample1;
 			index = i;
-			Start = i - 1;
-			End = i + 2;
+			StartI = i - 1;
+			EndI = i + 2;
 		}
 	
 		bezierOf(start, cp1, cp2, end, 0.6, dumpMiddlePoint);
@@ -314,8 +337,8 @@ const mouseMove = (event) => {
 			ClosestPoint = { x: dumpMiddlePoint.x, y: dumpMiddlePoint.y };
 			minDistSq = distToSample2;
 			index = i;
-			Start = i - 1;
-			End = i + 2;
+			StartI = i - 1;
+			EndI = i + 2;
 		}
 
 		bezierOf(start, cp1, cp2, end, 0.8, dumpMiddlePoint);
@@ -324,8 +347,8 @@ const mouseMove = (event) => {
 			ClosestPoint = { x: dumpMiddlePoint.x, y: dumpMiddlePoint.y };
 			minDistSq = distToSample3;
 			index = i;
-			Start = i - 1;
-			End = i + 2;
+			StartI = i - 1;
+			EndI = i + 2;
 		}
 
 		currentFirstPoint = end;
@@ -422,6 +445,22 @@ const getNearbyClosestObjectOrNull = (mousePos) => {
 	return null;
 }
 
+const scale = (vec, scale) => {
+	vec.x *= scale;
+	vec.y *= scale;
+}
+
+const tryNormalize = vec => {
+	const len = lengthOfVec(vec);
+	vec.x /= len;
+	vec.y /= len;
+}
+
+const lengthOfVec = vec => Math.sqrt(vec.x * vec.x + vec.y * vec.y);
+
+const isApprox = (v, dest) => Math.abs(v - dest) < 0.05
+
+
 //  ########################################################################
 //  ################################ HTML ##################################
 //  ########################################################################
@@ -473,18 +512,51 @@ const render = () => {
 		// dotIn(ClosestPoint.x, ClosestPoint.y, pointSize * 3);
 	}
 
+
+	// TODO: figure out real closest point in the thing, a way of selecting it
+	// TODO: draw area from there until the next
+
+
+	// // DRAWS ARE IN BETWEEN START AND END SEARCH POINT
+	const derivDump = { }
 	ctx.strokeStyle = "white";
-	// console.log(`will draw thing at ${Start} .. ${End}`);
-	startLocal = spline[Start];
-	for (let i = Start + 1; i <= End; i += 3) {
+	startLocal = spline[StartI];
+	for (let i = StartI + 1; i <= EndI; i += 3) {
 		const cp1 = spline[i];
 		const cp2 = spline[i + 1];
 		const end = spline[i + 2];
 
+		ctx.strokeStyle = "white";
 		ctx.beginPath();
 		ctx.moveTo(startLocal.x, startLocal.y);
 		ctx.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, end.x, end.y);
 		ctx.stroke();
+
+		const its = 9;
+		for (let i = 0; i < its; ++i) {
+			const t = i / (its - 1);
+
+			bezierOf(startLocal, cp1, cp2, end, t, dump);
+
+			derivativeOf(startLocal, cp1, cp2, end, t, derivDump);
+			tryNormalize(derivDump);
+
+			const normalScale = coordToPx(7.5);
+			scale(derivDump, normalScale);
+
+			// ctx.strokeStyle = "white";
+			// dotIn(derivDump.x + canvas.width/2, derivDump.y + canvas.height/2, pointSize * 1.5);
+			// dotIn(derivDump.x + dump.x, derivDump.y + dump.y, pointSize * 1.5);
+			
+			ctx.strokeStyle = "blue";
+			const rot90DegLeftX = -derivDump.y;
+			const rot90DegLeftY =  derivDump.x;
+			lineBetween(dump.x, dump.y, dump.x + rot90DegLeftX, dump.y + rot90DegLeftY);
+			
+			const rot90DegRightX =  derivDump.y;
+			const rot90DegRightY = -derivDump.x;
+			lineBetween(dump.x, dump.y, dump.x + rot90DegRightX, dump.y + rot90DegRightY);
+		}
 
 		startLocal = end;
 	}
@@ -600,6 +672,13 @@ const drawGrid = () => {
 const dotIn = (x, y, size) => {
 	ctx.beginPath();
 	ctx.arc(x, y, size, 0, TAU);
+	ctx.stroke();
+}
+
+const lineBetween = (x0, y0, x1, y1) => {
+	ctx.beginPath();
+	ctx.moveTo(x0, y0);
+	ctx.lineTo(x1, y1);
 	ctx.stroke();
 }
 
