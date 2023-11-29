@@ -15,41 +15,41 @@ canvas.width  = canvas.height;
 const img = new Image();
 img.src = "serra.jpg"
 
-const spanN    = document.getElementById("n");
-const spanH    = document.getElementById("h");
-const spanArea = document.getElementById("area");
-const nSlider  = document.getElementById("nSlider");
-const samplesDiv = document.getElementById("samplesDiv");
-const samplesContainer = document.getElementById("samples");
-
-const nMax = nSlider.max;
-const nStart = nSlider.value;
-
-const samplePElements = [];
-
-const createPForSample = () => {
-	const p = document.createElement("p");
-	p.classList.add("center");
-	
-	return p;
-}
-
-const updateP = (i, x, y) => {
-	samplePElements[i].textContent = `${x.toFixed(4)} | ${y.toFixed(4)}`;
-}
-
-const setPasBlank = (i) => {
-	samplePElements[i].textContent = "";
-}
-
-for (let i = 0; i < nMax; ++i) {
-	const p = createPForSample();
-	samplePElements.push(p);
-	samplesContainer.appendChild(p)
-}
+// const spanH    = document.getElementById("h");
+// const spanArea = document.getElementById("area");
+// const samplesDiv = document.getElementById("samplesDiv");
+// const samplesContainer = document.getElementById("samples");
+// const nSlider  = document.getElementById("nSlider");
+// const spanN    = document.getElementById("n");
+// const nMax = nSlider.max;
+// const nStart = nSlider.value;
+//
+// const samplePElements = [];
+//
+// const createPForSample = () => {
+// 	const p = document.createElement("p");
+// 	p.classList.add("center");
+//
+// 	return p;
+// }
+//
+// const updateP = (i, x, y) => {
+// 	samplePElements[i].textContent = `${x.toFixed(4)} | ${y.toFixed(4)}`;
+// }
+//
+// const setPasBlank = (i) => {
+// 	samplePElements[i].textContent = "";
+// }
+//
+// for (let i = 0; i < nMax; ++i) {
+// 	const p = createPForSample();
+// 	samplePElements.push(p);
+// 	samplesContainer.appendChild(p)
+// }
 
 
 // constants
+
 const TAU = 6.28318530;
 const NAN = + +'javascript é uma merda kkkkkk';
 const coordinateSystemMax = 400;
@@ -67,11 +67,6 @@ const lerp = (a, b, t) => (1 - t) * a + t * b;
 /** @return {Number} */
 const inverseLerp = (a, b, v) => (v - a) / (b - a);
 
-const gridXToLocalX = (x) => x / canvas.width * coordinateSystemMax;
-const gridYToLocalY = (y) => coordinateSystemMax - (y / canvas.height * coordinateSystemMax);
-
-const localXToGridX = (x) => x / coordinateSystemMax * canvas.width;
-const localYToGridY = (y) => canvas.height - (y / coordinateSystemMax * canvas.width);
 
 const spline = [
 	{ x: 839, y: 680 }, // 0
@@ -148,43 +143,53 @@ const getIsValidArea = () => {
 //  ########################################################################
 //  ############################## Graphics ################################
 //  ########################################################################
+// /** 
+//  * @type {{
+//  * isHolding: boolean,
+//  * objBeingHeld: { x: Number, y: Number }
+//  * isValid : boolean
+//  * }}
+//  */
+
 /** 
  * @type {{
- * isHolding: boolean,
- * objBeingHeld: { x: Number, y: Number }
- * isValid : boolean
- * }}
- */
+* isCursorCloseEnough: boolean,
+* }}
+*/
 const gameData = {
-	isHolding: false,
+	isCursorCloseEnough: false,
 	objBeingHeld: null,
-	isValid: getIsValidArea(),
 }
 
-/**
- * @param {MouseEvent} event
- * @returns {{ x: Number, y: Number }}
- */
-const getClampedRelativeMousePos = (event) => {
+const relativeMousePos = {
+	x: 0,
+	y: 0,
+}
+
+// lazyness
+const mousePos = relativeMousePos;
+
+/** * @param {MouseEvent} event */
+const setClampedRelativeMousePos = (event) => {
 	const x = event.pageX - canvasRect.left;
 	const y = event.pageY - canvasRect.top;
 
-	return { x: clamp(x, 0, canvas.width), y: clamp(y, 0, canvas.height) };
+	relativeMousePos.x = x;
+	relativeMousePos.y = y;
 }
 
 /** @param {MouseEvent} event */
 const onMouseDown = (event) => {
-	const mousePos = getClampedRelativeMousePos(event);
+	setClampedRelativeMousePos(event);
 
-	gameData.objBeingHeld = getNearbyClosestObjectOrNull(mousePos);
-	gameData.isHolding = gameData.objBeingHeld != null;
-	gameData.isValid = getIsValidArea();
+	// gameData.objBeingHeld = getNearbyClosestObjectOrNull(mousePos);
+	// gameData.isCursorCloseEnough = gameData.objBeingHeld != null;
 
-	mouseMove(event);
+	// mouseMove(event);
 }
 
 const onMouseUp = () => {
-	gameData.isHolding = false;
+	// gameData.isCursorCloseEnough = false;
 	gameData.objBeingHeld = null;
 }
 
@@ -208,7 +213,8 @@ const bezierOf = (start, cp1, cp2, end, t, dump) => {
 
 	const newX =
 		start.x * bernstein0 +
-	  cp1.x   * bernstein1 +
+
+		cp1.x   * bernstein1 +
 		cp2.x   * bernstein2 +
 		end.x   * bernstein3;
 
@@ -273,16 +279,14 @@ let EndI   = -1;
 
 /** @param {MouseEvent} event */
 const mouseMove = (event) => {
-	const mousePos = getClampedRelativeMousePos(event);
-
+	setClampedRelativeMousePos(event);
 
 	// first
 	const firstPoint = spline[0];
 	let minDistSq = distanceSq(firstPoint.x, firstPoint.y, mousePos.x, mousePos.y);
 
-	let index = 0;
 	ClosestPoint = firstPoint;
-	StartI = index;
+	StartI = 0;
 
 	let currentFirstPoint = firstPoint;
 
@@ -296,16 +300,10 @@ const mouseMove = (event) => {
 			// TODO: func
 			ClosestPoint = currentFirstPoint;
 			minDistSq = distToIthSq;
-			index = i;
 			StartI = Math.max(i - 1 - 3, 0);
 			EndI = i + 2;
 		}
 
-		// const start = spline[i - 3];
-		// const cp1   = spline[i - 2];
-		// const cp2   = spline[i - 1];
-		// const end   = spline[i];
-		
 		const start = currentFirstPoint;
 		const cp1   = spline[i];
 		const cp2   = spline[i+1];
@@ -316,7 +314,6 @@ const mouseMove = (event) => {
 		if (distToSample0 < minDistSq) {
 			ClosestPoint = { x: dumpMiddlePoint.x, y: dumpMiddlePoint.y };
 			minDistSq = distToSample0;
-			index = i;
 			StartI = i - 1;
 			EndI = i + 2;
 		}
@@ -326,7 +323,6 @@ const mouseMove = (event) => {
 		if (distToSample1 < minDistSq) {
 			ClosestPoint = { x: dumpMiddlePoint.x, y: dumpMiddlePoint.y };
 			minDistSq = distToSample1;
-			index = i;
 			StartI = i - 1;
 			EndI = i + 2;
 		}
@@ -336,7 +332,6 @@ const mouseMove = (event) => {
 		if (distToSample2 < minDistSq) {
 			ClosestPoint = { x: dumpMiddlePoint.x, y: dumpMiddlePoint.y };
 			minDistSq = distToSample2;
-			index = i;
 			StartI = i - 1;
 			EndI = i + 2;
 		}
@@ -346,7 +341,6 @@ const mouseMove = (event) => {
 		if (distToSample3 < minDistSq) {
 			ClosestPoint = { x: dumpMiddlePoint.x, y: dumpMiddlePoint.y };
 			minDistSq = distToSample3;
-			index = i;
 			StartI = i - 1;
 			EndI = i + 2;
 		}
@@ -355,13 +349,12 @@ const mouseMove = (event) => {
 	}
 
 	// last point
-	const distToIthSq = distanceSq(currentFirstPoint.x, currentFirstPoint.y, mousePos.x, mousePos.y)
-	if (distToIthSq < minDistSq) {
-		// TODO: func
-		ClosestPoint = currentFirstPoint;
-		minDistSq = distToIthSq;
-		index = spline.length - 1;
-	}
+	// const distToIthSq = distanceSq(currentFirstPoint.x, currentFirstPoint.y, mousePos.x, mousePos.y)
+	// if (distToIthSq < minDistSq) {
+	// 	// TODO: func
+	// 	ClosestPoint = currentFirstPoint;
+	// 	minDistSq = distToIthSq;
+	// }
 
 	
 	// last
@@ -379,13 +372,18 @@ const mouseMove = (event) => {
 
 
 
-	const distanceThreshold = canvas.width / coordinateSystemIts;
-	const distanceThresholdSq = distanceThreshold * distanceThreshold;
+	const oneQuadrant = canvas.width / coordinateSystemIts;
+	const distanceThresholdSq = oneQuadrant * oneQuadrant;
+
+	gameData.isCursorCloseEnough = minDistSq < distanceThresholdSq;
+	// if (minDistSq < distanceThresholdSq) {
+	// 	gameData.isCursorCloseEnough = true;
+	// } else {
+	// 	gameData.isCursorCloseEnough = true;
+	// }
 
 	// 6 -> 2 | 33 -> 11
-	const splineIndex = index / 3;
-
-
+	// const splineIndex = index / 3;
 
 
 	// TODO: check for last after for
@@ -400,16 +398,14 @@ const mouseMove = (event) => {
 
 
 
-
 	// TODO: get rid, holding object
 	const objectBeingHovered = getNearbyClosestObjectOrNull(mousePos);
 	// console.log(objectBeingHovered);
+	
 	document.body.style.cursor = objectBeingHovered == null ? "default" : "pointer";
-	if (gameData.isHolding) {
-		gameData.objBeingHeld.x = mousePos.x;
-		gameData.objBeingHeld.y = mousePos.y;
-		gameData.isValid = getIsValidArea();
-		console.log(gameData.objBeingHeld);
+	if (gameData.isCursorCloseEnough) {
+		// gameData.objBeingHeld.x = mousePos.x;
+		// gameData.objBeingHeld.y = mousePos.y;
 	}
 
 	update();
@@ -516,6 +512,7 @@ const render = () => {
 	// TODO: figure out real closest point in the thing, a way of selecting it
 	// TODO: draw area from there until the next
 
+	if (!gameData.isCursorCloseEnough) return;
 
 	// // DRAWS ARE IN BETWEEN START AND END SEARCH POINT
 	const derivDump = { }
@@ -570,7 +567,6 @@ const render = () => {
 
 	// TODO: get rid, draws controllable points
 	// ctx.lineWidth = 3;
-	// // ctx.strokeStyle = gameData.isValid ? "black" : "red";
 	// ctx.strokeStyle = "black";
 	// ctx.beginPath();
 	// ctx.moveTo(globalStart.x, globalStart.y);
@@ -695,7 +691,7 @@ window.addEventListener("mousedown", onMouseDown);
 window.addEventListener("mouseup",   onMouseUp);
 window.addEventListener("mousemove", mouseMove);
 
-nSlider.addEventListener("mousemove", update);
+// nSlider.addEventListener("mousemove", update);
 
 // render();
 

@@ -125,6 +125,12 @@ const invertedBissectionYForX = (x) => {
 
 
 
+const gridXToLocalX = (x) => x / canvas.width * coordinateSystemMax;
+
+
+
+
+
 const calculateHForN = n => {
 	const b = gridXToLocalX(globalEnd.x);
 	const a = gridXToLocalX(globalStart.x);
