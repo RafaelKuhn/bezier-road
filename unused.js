@@ -165,3 +165,25 @@ const updateDom = () => {
 	}
 }
 
+
+
+const bezierIn = (start, anchor0, anchor1, end) => {
+	ctx.fillStyle = "blue";
+	ctx.lineWidth = 4;
+	ctx.beginPath();
+	ctx.arc(start.x, start.y, pointSize, 0, TAU);
+	ctx.arc(end.x,   end.y,   pointSize, 0, TAU);
+	ctx.fill();
+	
+	ctx.fillStyle = "cyan";
+	ctx.beginPath();
+	ctx.arc(anchor0.x, anchor0.y, pointSize, 0, TAU);
+	ctx.arc(anchor1.x, anchor1.y, pointSize, 0, TAU);
+	ctx.fill();
+	
+	ctx.strokeStyle = "red";
+	ctx.beginPath();
+	ctx.moveTo(start.x, start.y);
+	ctx.bezierCurveTo(anchor0.x, anchor0.y, anchor1.x, anchor1.y, end.x, end.y);
+	ctx.stroke();
+}
