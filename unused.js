@@ -119,3 +119,43 @@ const invertedBissectionYForX = (x) => {
 
 	return sampleCurveYAt(1 - bisectionMid);
 }
+
+
+
+
+
+
+const calculateHForN = n => {
+	const b = gridXToLocalX(globalEnd.x);
+	const a = gridXToLocalX(globalStart.x);
+	return Math.abs(b - a) / (n - 1);
+}
+
+const mathData = {
+	n: nStart,
+	h: calculateHForN(nStart),
+}
+
+// called in render()
+const updateMathData = () => {
+	mathData.n = nSlider.value;
+	mathData.h = calculateHForN(mathData.n);
+}
+
+
+// called in render()
+const updateDom = () => {
+	spanN.textContent = mathData.n - 1;
+	if (gameData.isValid) {
+		spanH.textContent = mathData.h.toFixed(4);
+		spanH.style.color = "black";
+		samplesDiv.style.display = "block";
+	}
+	
+	else {
+		spanH.textContent	= NAN;
+		spanH.style.color = "red"
+		samplesDiv.style.display = "none";
+	}
+}
+

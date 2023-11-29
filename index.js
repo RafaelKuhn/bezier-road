@@ -59,7 +59,12 @@ const coordinateSystemIts = 10;
 //  ############################### Beziér #################################
 //  ########################################################################
 
+/** @return {Number} */
+const clamp = (x, min, max) => Math.max(min, Math.min(x, max));
+
+/** @return {Number} */
 const lerp = (a, b, t) => (1 - t) * a + t * b;
+/** @return {Number} */
 const inverseLerp = (a, b, v) => (v - a) / (b - a);
 
 const gridXToLocalX = (x) => x / canvas.width * coordinateSystemMax;
@@ -67,17 +72,6 @@ const gridYToLocalY = (y) => coordinateSystemMax - (y / canvas.height * coordina
 
 const localXToGridX = (x) => x / coordinateSystemMax * canvas.width;
 const localYToGridY = (y) => canvas.height - (y / coordinateSystemMax * canvas.width);
-
-// Points for the curve
-// const start = { x: localXToGridX(1.0), y: localYToGridY(4.5) };
-// const end =   { x: localXToGridX(7.0), y: localYToGridY(3.5) };
-// const cp1 =   { x: localXToGridX(2.0), y: localYToGridY(1.0) };
-// const cp2 =   { x: localXToGridX(6.0), y: localYToGridY(7.0) };
-
-// const start = { x: 839, y: 680 };
-// const cp1 =   { x: 718, y: 580 };
-// const cp2 =   { x: 638, y: 540 };
-// const end =   { x: 747, y: 423 };
 
 const spline = [
 	{ x: 839, y: 680 }, // 0
@@ -114,11 +108,11 @@ const spline = [
 	{ x: 368, y: 407 },
 	{ x: 425, y: 326 }, // 24
 
-	{ x: 571, y: 219 },
+	{ x: 564, y: 210 },
 	{ x: 493, y: 195 },
 	{ x: 454, y: 192 }, // 27
 
-	{ x: 368, y: 223 },
+	{ x: 337, y: 218 },
 	{ x: 287, y: 190 },
 	{ x: 238, y: 245 }, // 30
 
@@ -128,38 +122,17 @@ const spline = [
 ]
 
 
-// const it = 12;
-// const start = { x: spline[it].x, y: spline[it].y } ;
-// const cp1 =   { x: spline[it - 1].x, y: spline[it - 1].y } ;
-// const cp2 =   { x: spline[it - 2].x, y: spline[it - 2].y } ;
-// const end =   { x: spline[it - 3].x, y: spline[it - 3].y } ;
-
 // TODO: get rid
-const globalStart = { x: canvas.width - 15, y: canvas.height - 15 } ;
-const globalCp1 =   { x: canvas.width - 15, y: canvas.height - 15 } ;
-const globalCp2 =   { x: canvas.width - 15, y: canvas.height - 15 } ;
-const globalEnd =   { x: canvas.width - 15, y: canvas.height - 15 } ;
+const it = 27;
+const globalStart = { x: spline[it].x, y: spline[it].y } ;
+const globalCp1 =   { x: spline[it - 1].x, y: spline[it - 1].y } ;
+const globalCp2 =   { x: spline[it - 2].x, y: spline[it - 2].y } ;
+const globalEnd =   { x: spline[it - 3].x, y: spline[it - 3].y } ;
 
 
 // maths
 const pxToCoord = px => {
 	return px / canvas.width * coordinateSystemMax;
-}
-
-const calculateHForN = n => {
-	const b = gridXToLocalX(globalEnd.x);
-	const a = gridXToLocalX(globalStart.x);
-	return Math.abs(b - a) / (n - 1);
-}
-
-const mathData = {
-	n: nStart,
-	h: calculateHForN(nStart),
-}
-
-const updateMathData = () => {
-	mathData.n = nSlider.value;
-	mathData.h = calculateHForN(mathData.n);
 }
 
 
@@ -189,11 +162,6 @@ const gameData = {
 	isValid: getIsValidArea(),
 }
 
-/** @return {Number} */
-const clamp = (x, min, max) => {
-	return Math.max(min, Math.min(x, max));
-}
-
 /**
  * @param {MouseEvent} event
  * @returns {{ x: Number, y: Number }}
@@ -221,48 +189,181 @@ const onMouseUp = () => {
 	gameData.objBeingHeld = null;
 }
 
-let closestPoint = null;
+const sampleFrom = (startIndex, t, dump) => {
+	const start = spline[startIndex];
+	const cp1   = spline[startIndex + 1];
+	const cp2   = spline[startIndex + 2];
+	const end   = spline[startIndex + 3];
+
+	bezierOf(start, cp1, cp2, end, t, dump);
+}
+
+const bezierOf = (start, cp1, cp2, end, t, dump) => {
+	const t2 =  t * t;
+	const t3 = t2 * t;
+
+	const bernstein0 =   -t3 + 3*t2 - 3*t + 1;
+	const bernstein1 =  3*t3 - 6*t2 + 3*t;
+	const bernstein2 = -3*t3 + 3*t2;
+	const bernstein3 =    t3;
+
+	const newX =
+		start.x * bernstein0 +
+	  cp1.x   * bernstein1 +
+		cp2.x   * bernstein2 +
+		end.x   * bernstein3;
+
+	const newY =
+		start.y * bernstein0 +
+	  cp1.y   * bernstein1 +
+		cp2.y   * bernstein2 +
+		end.y   * bernstein3;
+
+	dump.x = newX;
+	dump.y = newY;
+}
+
+// TODO: get rid of
+const bernsteinOf = (start, cp1, cp2, end, b0, b1, b2, b3, dump) => {
+	const newX =
+		start.x * b0 +
+	  cp1.x   * b1 +
+		cp2.x   * b2 +
+		end.x   * b3;
+
+	const newY =
+		start.y * b0 +
+	  cp1.y   * b1 +
+		cp2.y   * b2 +
+		end.y   * b3;
+
+	dump.x = newX;
+	dump.y = newY;
+}
+
+
+let ClosestPoint = null;
+
+let Start = 0;
+let End   = -1;
+
 
 /** @param {MouseEvent} event */
 const mouseMove = (event) => {
 	const mousePos = getClampedRelativeMousePos(event);
 
-	
+
 	// first
 	const firstPoint = spline[0];
 	let minDistSq = distanceSq(firstPoint.x, firstPoint.y, mousePos.x, mousePos.y);
-	
+
 	let index = 0;
-	closestPoint = firstPoint;
+	ClosestPoint = firstPoint;
+	Start = index;
 
+	let currentFirstPoint = firstPoint;
+
+	const dumpMiddlePoint = { x: 0, y: 0 };
 	const penultimateAnchorIndex = spline.length - 3;
-	for (let i = 3; i < penultimateAnchorIndex; i += 3) {
-		const point = spline[i];
-		let distToIthSq = distanceSq(point.x, point.y, mousePos.x, mousePos.y)
-
+	for (let i = 1; i <= penultimateAnchorIndex; i += 3) {
+		// const point = spline[i - 1];
+		
+		const distToIthSq = distanceSq(currentFirstPoint.x, currentFirstPoint.y, mousePos.x, mousePos.y)
 		if (distToIthSq < minDistSq) {
-			closestPoint = point;
+			// TODO: func
+			ClosestPoint = currentFirstPoint;
 			minDistSq = distToIthSq;
 			index = i;
+			Start = Math.max(i - 1 - 3, 0);
+			End = i + 2;
 		}
+
+		// const start = spline[i - 3];
+		// const cp1   = spline[i - 2];
+		// const cp2   = spline[i - 1];
+		// const end   = spline[i];
+		
+		const start = currentFirstPoint;
+		const cp1   = spline[i];
+		const cp2   = spline[i+1];
+		const end   = spline[i+2];
+		
+		bezierOf(start, cp1, cp2, end, 0.2, dumpMiddlePoint);
+		const distToSample0 = distanceSq(dumpMiddlePoint.x, dumpMiddlePoint.y, mousePos.x, mousePos.y);
+		if (distToSample0 < minDistSq) {
+			ClosestPoint = { x: dumpMiddlePoint.x, y: dumpMiddlePoint.y };
+			minDistSq = distToSample0;
+			index = i;
+			Start = i - 1;
+			End = i + 2;
+		}
+
+		bezierOf(start, cp1, cp2, end, 0.4, dumpMiddlePoint);
+		const distToSample1 = distanceSq(dumpMiddlePoint.x, dumpMiddlePoint.y, mousePos.x, mousePos.y);
+		if (distToSample1 < minDistSq) {
+			ClosestPoint = { x: dumpMiddlePoint.x, y: dumpMiddlePoint.y };
+			minDistSq = distToSample1;
+			index = i;
+			Start = i - 1;
+			End = i + 2;
+		}
+	
+		bezierOf(start, cp1, cp2, end, 0.6, dumpMiddlePoint);
+		const distToSample2 = distanceSq(dumpMiddlePoint.x, dumpMiddlePoint.y, mousePos.x, mousePos.y);
+		if (distToSample2 < minDistSq) {
+			ClosestPoint = { x: dumpMiddlePoint.x, y: dumpMiddlePoint.y };
+			minDistSq = distToSample2;
+			index = i;
+			Start = i - 1;
+			End = i + 2;
+		}
+
+		bezierOf(start, cp1, cp2, end, 0.8, dumpMiddlePoint);
+		const distToSample3 = distanceSq(dumpMiddlePoint.x, dumpMiddlePoint.y, mousePos.x, mousePos.y);
+		if (distToSample3 < minDistSq) {
+			ClosestPoint = { x: dumpMiddlePoint.x, y: dumpMiddlePoint.y };
+			minDistSq = distToSample3;
+			index = i;
+			Start = i - 1;
+			End = i + 2;
+		}
+
+		currentFirstPoint = end;
 	}
 
-	// last
-	const lastIndex = spline.length - 1;
-	const lastPoint = spline[lastIndex];
-	let lastMinDistSq = distanceSq(lastPoint.x, lastPoint.y, mousePos.x, mousePos.y);
-	if (lastMinDistSq < minDistSq) {
-		closestPoint = lastPoint;
-		minDistSq = lastMinDistSq;
-		index = lastIndex;
+	// last point
+	const distToIthSq = distanceSq(currentFirstPoint.x, currentFirstPoint.y, mousePos.x, mousePos.y)
+	if (distToIthSq < minDistSq) {
+		// TODO: func
+		ClosestPoint = currentFirstPoint;
+		minDistSq = distToIthSq;
+		index = spline.length - 1;
 	}
+
+	
+	// last
+	// const lastIndex = spline.length - 1;
+	// const lastPoint = spline[lastIndex];
+	// let lastMinDistSq = distanceSq(lastPoint.x, lastPoint.y, mousePos.x, mousePos.y);
+	// if (lastMinDistSq < minDistSq) {
+	// 	ClosestPoint = lastPoint;
+	// 	// TODO: func
+	// 	minDistSq = lastMinDistSq;
+	// 	index = lastIndex;
+	// }
+
+
+
+
 
 	const distanceThreshold = canvas.width / coordinateSystemIts;
 	const distanceThresholdSq = distanceThreshold * distanceThreshold;
 
-
 	// 6 -> 2 | 33 -> 11
 	const splineIndex = index / 3;
+
+
+
 
 	// TODO: check for last after for
 	// if (minDistSq > distanceThresholdSq) {
@@ -273,9 +374,14 @@ const mouseMove = (event) => {
 
 	// console.log("min dist is " + minDistSq);
 
-	const objectBeingHovered = getNearbyClosestObjectOrNull(mousePos);
-	document.body.style.cursor = objectBeingHovered == null ? "default" : "pointer";
 
+
+
+
+	// TODO: get rid, holding object
+	const objectBeingHovered = getNearbyClosestObjectOrNull(mousePos);
+	// console.log(objectBeingHovered);
+	document.body.style.cursor = objectBeingHovered == null ? "default" : "pointer";
 	if (gameData.isHolding) {
 		gameData.objBeingHeld.x = mousePos.x;
 		gameData.objBeingHeld.y = mousePos.y;
@@ -283,7 +389,7 @@ const mouseMove = (event) => {
 		console.log(gameData.objBeingHeld);
 	}
 
-	render();
+	update();
 }
 
 /** @param {Number} p0x @param {Number} p1x  @param {Number} p1x  @param {Number} p1y */
@@ -306,6 +412,8 @@ const distanceTo = (point0, point1) => {
 
 /** @param {{ x: Number, y: Number }} mousePos */
 const getNearbyClosestObjectOrNull = (mousePos) => {
+	return null;
+
 	if (distanceTo(mousePos, globalStart) < 20) return globalStart;
 	if (distanceTo(mousePos, globalCp1) < 20)   return globalCp1;
 	if (distanceTo(mousePos, globalCp2) < 20)   return globalCp2;
@@ -320,16 +428,121 @@ const getNearbyClosestObjectOrNull = (mousePos) => {
 const coordinateSystemMarkLength = 10;
 const pointSize = 7;
 
-const drawStuff = () => {
+const render = () => {
 
 	// reset
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
 	ctx.setLineDash([0]);
-	// ctx.lineWidth = 3;
 
 	ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
+	drawGrid();
 
+	const dump = { x: 0, y: 0 }
+
+	// draw spline
+	ctx.strokeStyle = "red";
+
+	let startLocal = spline[0];
+
+	ctx.lineWidth = 2;
+	dotIn(startLocal.x, startLocal.y, pointSize);
+
+	for (let i = 1; i < spline.length; i += 3) {
+		const cp1 = spline[i];
+		const cp2 = spline[i + 1];
+		const end = spline[i + 2];
+
+		ctx.beginPath();
+		ctx.moveTo(startLocal.x, startLocal.y);
+		ctx.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, end.x, end.y);
+		ctx.stroke();
+
+		ctx.lineWidth = 2;
+		dotIn(end.x, end.y, pointSize);
+
+		bezierOf(startLocal, cp1, cp2, end, 0.5, dump);
+		dotIn(dump.x, dump.y, pointSize * 0.7);
+		// sampleFrom(i - 3, 0.5, dumpMiddlePoint);
+
+		startLocal = end;
+	}
+
+	if (ClosestPoint) {
+		ctx.strokeStyle = "white";
+		// dotIn(ClosestPoint.x, ClosestPoint.y, pointSize * 3);
+	}
+
+	ctx.strokeStyle = "white";
+	// console.log(`will draw thing at ${Start} .. ${End}`);
+	startLocal = spline[Start];
+	for (let i = Start + 1; i <= End; i += 3) {
+		const cp1 = spline[i];
+		const cp2 = spline[i + 1];
+		const end = spline[i + 2];
+
+		ctx.beginPath();
+		ctx.moveTo(startLocal.x, startLocal.y);
+		ctx.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, end.x, end.y);
+		ctx.stroke();
+
+		startLocal = end;
+	}
+
+
+
+
+
+
+
+
+	// TODO: get rid, draws controllable points
+	// ctx.lineWidth = 3;
+	// // ctx.strokeStyle = gameData.isValid ? "black" : "red";
+	// ctx.strokeStyle = "black";
+	// ctx.beginPath();
+	// ctx.moveTo(globalStart.x, globalStart.y);
+	// ctx.bezierCurveTo(globalCp1.x, globalCp1.y, globalCp2.x, globalCp2.y, globalEnd.x, globalEnd.y);
+	// ctx.stroke();
+
+	// // dashed lines
+	// ctx.lineWidth = 2;
+	// ctx.setLineDash([5, 7]);
+	// // ctx.strokeStyle = "black";
+	// ctx.strokeStyle = "white";
+
+	// ctx.beginPath();
+	// ctx.moveTo(globalStart.x, globalStart.y)
+	// ctx.lineTo(globalCp1.x, globalCp1.y)
+	// ctx.stroke();
+
+	// ctx.beginPath();
+	// ctx.moveTo(globalEnd.x, globalEnd.y)
+	// ctx.lineTo(globalCp2.x, globalCp2.y)
+	// ctx.stroke();
+
+	// // start and end points
+	// ctx.fillStyle = "blue";
+	// ctx.beginPath();
+	// ctx.arc(globalStart.x, globalStart.y, pointSize, 0, TAU);
+	// ctx.arc(globalEnd.x,   globalEnd.y,   pointSize, 0, TAU);
+	// ctx.fill();
+
+	// // control points
+	// ctx.fillStyle = "red";
+	// ctx.beginPath();
+	// ctx.arc(globalCp1.x, globalCp1.y, pointSize, 0, TAU);
+	// ctx.arc(globalCp2.x, globalCp2.y, pointSize, 0, TAU);
+	// ctx.fill();
+
+
+
+
+}
+
+
+
+const drawGrid = () => {
 	// draw grid
 	ctx.lineWidth = 0.5;
 	ctx.strokeStyle = "#d3d3d3";
@@ -381,112 +594,19 @@ const drawStuff = () => {
 
 		ctx.fillText(ourLen.toFixed(0), 15, canvas.height - ourPeriod + 6);
 	}
-
-
-	// draw spline
-	ctx.strokeStyle = "red";
-	let startLocal = spline[0];
-	dotIn(startLocal.x, startLocal.y);
-	for (let i = 1; i < spline.length; i += 3) {
-		const cp1 = spline[i];
-		const cp2 = spline[i + 1];
-		const end = spline[i + 2];
-
-		ctx.beginPath();
-		ctx.moveTo(startLocal.x, startLocal.y);
-		ctx.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, end.x, end.y);
-		ctx.stroke();
-
-		dotIn(end.x, end.y);
-
-		startLocal = end;
-	}
-
-	if (closestPoint) {
-		ctx.strokeStyle = "white";
-		ctx.beginPath();
-		ctx.arc(closestPoint.x, closestPoint.y, pointSize * 3, 0, TAU);
-		ctx.stroke();
-	}
-
-
-
-	// // cubic bézier curve
-	// ctx.lineWidth = 3;
-	// // ctx.strokeStyle = gameData.isValid ? "black" : "red";
-	// ctx.strokeStyle = "black";
-	// ctx.beginPath();
-	// ctx.moveTo(start.x, start.y);
-	// ctx.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, end.x, end.y);
-	// ctx.stroke();
-
-	// // dashed lines
-	// ctx.lineWidth = 2;
-	// ctx.setLineDash([5, 7]);
-	// // ctx.strokeStyle = "black";
-	// ctx.strokeStyle = "white";
-
-	// ctx.beginPath();
-	// ctx.moveTo(start.x, start.y)
-	// ctx.lineTo(cp1.x, cp1.y)
-	// ctx.stroke();
-
-	// ctx.beginPath();
-	// ctx.moveTo(end.x, end.y)
-	// ctx.lineTo(cp2.x, cp2.y)
-	// ctx.stroke();
-
-	// // point in the middle
-	// // ctx.setLineDash([0]);
-	// // const point = sampleCurveAt(0.5);
-	// // ctx.beginPath();
-	// // ctx.arc(point.x, point.y, pointSize, 0, TAU);
-	// // ctx.stroke();
-
-	// // start and end points
-	// ctx.fillStyle = "blue";
-	// ctx.beginPath();
-	// ctx.arc(start.x, start.y, pointSize, 0, TAU);
-	// ctx.arc(end.x,   end.y,   pointSize, 0, TAU);
-	// ctx.fill();
-
-	// // control points
-	// ctx.fillStyle = "red";
-	// ctx.beginPath();
-	// ctx.arc(cp1.x, cp1.y, pointSize, 0, TAU);
-	// ctx.arc(cp2.x, cp2.y, pointSize, 0, TAU);
-	// ctx.fill();
-
-
-
-
 }
 
-const dotIn = (x, y) => {
+
+const dotIn = (x, y, size) => {
 	ctx.beginPath();
-	ctx.arc(x, y, pointSize, 0, TAU);
+	ctx.arc(x, y, size, 0, TAU);
 	ctx.stroke();
 }
 
-const updateDom = () => {
-	spanN.textContent = mathData.n - 1;
-	if (gameData.isValid) {
-		spanH.textContent = mathData.h.toFixed(4);
-		spanH.style.color = "black";
-		samplesDiv.style.display = "block";
-	}
-	
-	else {
-		spanH.textContent	= NAN;
-		spanH.style.color = "red"
-		samplesDiv.style.display = "none";
-	}
-}
 
-const render = () => {
-	drawStuff();
-	updateMathData();
-	updateDom();
+
+const update = () => {
+	render();
 }
 
 //  ########################################################################
@@ -496,7 +616,7 @@ window.addEventListener("mousedown", onMouseDown);
 window.addEventListener("mouseup",   onMouseUp);
 window.addEventListener("mousemove", mouseMove);
 
-nSlider.addEventListener("mousemove", render);
+nSlider.addEventListener("mousemove", update);
 
 // render();
 
@@ -527,7 +647,7 @@ img.onload = () => {
 	// const width  = img.width * 1.3;
 	// canvas.width = width;
 
-	render();
+	update();
 }
 
 
