@@ -15,6 +15,28 @@ canvas.width  = canvas.height;
 const img = new Image();
 img.src = "serra.jpg"
 
+/** @type {HTMLDivElement} */
+const hidDiv = document.getElementById("hid");
+/** @type {HTMLParagraphElement} */
+const curP = document.getElementById("cur");
+/** @type {HTMLSelectElement} */
+const modeSelect = document.getElementById("modos");
+
+const Modes = {
+	selecao: "MODO selecao",
+	circunferencia: "MODO circunferencia",
+	ancoras: "MODO ancoras",
+}
+
+modeSelect.onchange = () => {
+	const mode = Modes[modeSelect.value];
+	console.log(`changed to ${mode}`);
+}
+
+modeSelect.selectedIndex = 0;
+// TODO: call onChangeMode here
+
+
 // const spanH    = document.getElementById("h");
 // const spanArea = document.getElementById("area");
 // const samplesDiv = document.getElementById("samplesDiv");
@@ -297,6 +319,7 @@ const mouseMove = (event) => {
 	for (let i = 1; i <= penultimateAnchorIndex; i += 3) {
 		// const point = spline[i - 1];
 		
+		// distance to bigger points
 		const distToIthSq = distanceSq(currentFirstPoint.x, currentFirstPoint.y, mousePos.x, mousePos.y)
 		if (distToIthSq < minDistSq) {
 			// TODO: func
@@ -311,41 +334,19 @@ const mouseMove = (event) => {
 		const cp2   = spline[i+1];
 		const end   = spline[i+2];
 
-		// TODO: for loop
-		bezierOf(start, cp1, cp2, end, 0.2, dumpMiddlePoint);
-		const distToSample0 = distanceSq(dumpMiddlePoint.x, dumpMiddlePoint.y, mousePos.x, mousePos.y);
-		if (distToSample0 < minDistSq) {
-			ClosestPoint = { x: dumpMiddlePoint.x, y: dumpMiddlePoint.y };
-			minDistSq = distToSample0;
-			StartI = i - 1;
-			EndI = i + 2;
-		}
+		const its = 6;
+		// // 0.2 -> 0.8
+		for (let ij = 1; ij <= its - 2; ++ij) {
+			const t = ij / (its - 1);
 
-		bezierOf(start, cp1, cp2, end, 0.4, dumpMiddlePoint);
-		const distToSample1 = distanceSq(dumpMiddlePoint.x, dumpMiddlePoint.y, mousePos.x, mousePos.y);
-		if (distToSample1 < minDistSq) {
-			ClosestPoint = { x: dumpMiddlePoint.x, y: dumpMiddlePoint.y };
-			minDistSq = distToSample1;
-			StartI = i - 1;
-			EndI = i + 2;
-		}
-	
-		bezierOf(start, cp1, cp2, end, 0.6, dumpMiddlePoint);
-		const distToSample2 = distanceSq(dumpMiddlePoint.x, dumpMiddlePoint.y, mousePos.x, mousePos.y);
-		if (distToSample2 < minDistSq) {
-			ClosestPoint = { x: dumpMiddlePoint.x, y: dumpMiddlePoint.y };
-			minDistSq = distToSample2;
-			StartI = i - 1;
-			EndI = i + 2;
-		}
-
-		bezierOf(start, cp1, cp2, end, 0.8, dumpMiddlePoint);
-		const distToSample3 = distanceSq(dumpMiddlePoint.x, dumpMiddlePoint.y, mousePos.x, mousePos.y);
-		if (distToSample3 < minDistSq) {
-			ClosestPoint = { x: dumpMiddlePoint.x, y: dumpMiddlePoint.y };
-			minDistSq = distToSample3;
-			StartI = i - 1;
-			EndI = i + 2;
+			bezierOf(start, cp1, cp2, end, t, dumpMiddlePoint);
+			const distToSample = distanceSq(dumpMiddlePoint.x, dumpMiddlePoint.y, mousePos.x, mousePos.y);
+			if (distToSample < minDistSq) {
+				ClosestPoint = { x: dumpMiddlePoint.x, y: dumpMiddlePoint.y };
+				minDistSq = distToSample;
+				StartI = i - 1;
+				EndI = i + 2;
+			}
 		}
 
 		currentFirstPoint = end;
@@ -361,7 +362,6 @@ const mouseMove = (event) => {
 		EndI = spline.length - 1;
 	}
 
-	
 	// last
 	// const lastIndex = spline.length - 1;
 	// const lastPoint = spline[lastIndex];
@@ -374,13 +374,9 @@ const mouseMove = (event) => {
 	// }
 
 
-
-
-
-	const oneQuadrant = canvas.width / coordinateSystemIts;
-	const distanceThresholdSq = oneQuadrant * oneQuadrant;
-
-	gameData.isCursorCloseEnough = minDistSq < distanceThresholdSq;
+	// const oneQuadrant = canvas.width / coordinateSystemIts;
+	// const distanceThresholdSq = oneQuadrant * oneQuadrant;
+	// gameData.isCursorCloseEnough = minDistSq < distanceThresholdSq;
 	// if (minDistSq < distanceThresholdSq) {
 	// 	gameData.isCursorCloseEnough = true;
 	// } else {
@@ -389,7 +385,6 @@ const mouseMove = (event) => {
 
 	// 6 -> 2 | 33 -> 11
 	// const splineIndex = index / 3;
-
 
 
 	// TODO: get rid, holding object
@@ -482,28 +477,19 @@ const render = () => {
 		const cp2 = spline[i + 1];
 		const end = spline[i + 2];
 
-		// TODO: call bezier here
-		ctx.beginPath();
-		ctx.moveTo(startLocal.x, startLocal.y);
-		ctx.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, end.x, end.y);
-		ctx.stroke();
+		drawBezier(startLocal, cp1, cp2, end);
 
 		ctx.lineWidth = 2;
 		drawDotIn(end.x, end.y, pointSize);
 
-		// TODO: for loop
-		bezierOf(startLocal, cp1, cp2, end, 0.2, dump);
-		drawDotIn(dump.x, dump.y, pointSize * 0.3);
-
-		bezierOf(startLocal, cp1, cp2, end, 0.4, dump);
-		drawDotIn(dump.x, dump.y, pointSize * 0.3);
-
-		bezierOf(startLocal, cp1, cp2, end, 0.6, dump);
-		drawDotIn(dump.x, dump.y, pointSize * 0.3);
-
-		bezierOf(startLocal, cp1, cp2, end, 0.8, dump);
-		drawDotIn(dump.x, dump.y, pointSize * 0.3);
-		// sampleFrom(i - 3, 0.5, dumpMiddlePoint);
+		const its = 6;
+		// 0.2 -> 0.8
+		for (let i = 1; i <= its - 2; ++i) {
+			const t = i / (its - 1);
+			
+			bezierOf(startLocal, cp1, cp2, end, t, dump);
+			drawDotIn(dump.x, dump.y, pointSize * 0.3);
+		}
 
 		startLocal = end;
 	}
@@ -576,20 +562,20 @@ const render = () => {
 	let curCurve = {};
 	bezierOf(curp0, curp1, curp2, curp3, 0, curCurve);
 
-	let minDistSq = distanceSq(startLocal.x, startLocal.y, mousePos.x, mousePos.y);
+	let minDistSq2 = distanceSq(startLocal.x, startLocal.y, mousePos.x, mousePos.y);
 	for (let i = StartI + 1; i <= EndI; i += 3) {
 		const cp1 = spline[i];
 		const cp2 = spline[i + 1];
 		const end = spline[i + 2];
 
-		const its = 1000;
+		const its = 150;
 		for (let i = 0; i < its; ++i) {
 			const t = i / (its - 1);
 		
 			bezierOf(startLocal, cp1, cp2, end, t, dump);
 			const dist = distanceSq(dump.x, dump.y, mousePos.x, mousePos.y);
-			if (dist < minDistSq) {
-				minDistSq = dist;
+			if (dist < minDistSq2) {
+				minDistSq2 = dist;
 				curp0 = startLocal;
 				curp1 = cp1;
 				curp2 = cp2;
@@ -604,9 +590,20 @@ const render = () => {
 		startLocal = end;
 	}
 
+	const oneQuadrant = canvas.width / coordinateSystemIts;
+	const distanceThresholdSq = oneQuadrant * oneQuadrant;
+	gameData.isCursorCloseEnough = minDistSq2 < distanceThresholdSq;
+
 	if (gameData.isCursorCloseEnough) {
 		bezierOf(curp0, curp1, curp2, curp3, curT, dump);
-		// drawDotIn(dump.x, dump.y, pointSize * 2)
+
+		// log real coordinates
+		// const fixedX = dump.x / canvas.width * coordinateSystemMax;
+		// const fixedY = (canvas.width - dump.y) / canvas.width * coordinateSystemMax
+		// console.log(`${formatXY(fixedX, fixedY)}`);
+
+		ctx.strokeStyle = "blue";
+		drawDotIn(dump.x, dump.y, pointSize * 0.4)
 
 		derivativeOf(curp0, curp1, curp2, curp3, curT, derivDump);
 		// console.log(`deriv ${formatVec(derivDump)}`);
@@ -618,9 +615,8 @@ const render = () => {
 		const mouseToCurveX = mousePos.x - curCurve.x;
 		const mouseToCurveY = mousePos.y - curCurve.y;
 
-		console.log(`n: ${formatVec(normal)} ${formatXY(mouseToCurveX, mouseToCurveY)}`);
+		// console.log(`n: ${formatVec(normal)} ${formatXY(mouseToCurveX, mouseToCurveY)}`);
 		const dotProd = dot(normal.x, normal.y, mouseToCurveX, mouseToCurveY)
-		console.log(dotProd);
 		if (dotProd < 0) {
 			normal.x = -normal.x;
 			normal.y = -normal.y;
@@ -637,9 +633,13 @@ const render = () => {
 		
 		ctx.strokeStyle = "lime";
 		drawLineBetween(dump.x, dump.y, dump.x + normal.x, dump.y + normal.y);
+		// hidDiv.style.display = "block";
+		formatXY
+		curP.textContent = `Atual: ${formatXYAsCoords(dump.x, dump.y)}`
+	} else {
+		curP.textContent = `Atual: (X: ${NAN}, Y: ${NAN})`
+		// hidDiv.style.display = "none";
 	}
-
-
 
 
 
@@ -684,9 +684,10 @@ const render = () => {
 	// ctx.fill();
 
 
-
-
 }
+
+
+
 
 
 
@@ -758,6 +759,12 @@ const drawDotIn = (x, y, size) => {
 	ctx.stroke();
 }
 
+const fillDotIn = (x, y, size) => {
+	ctx.beginPath();
+	ctx.arc(x, y, size, 0, TAU);
+	ctx.fill();
+}
+
 const drawLineBetween = (x0, y0, x1, y1) => {
 	ctx.beginPath();
 	ctx.moveTo(x0, y0);
@@ -787,7 +794,7 @@ window.addEventListener("mousemove", mouseMove);
 
 img.onload = () => {
 	// const width  = img.width * 1.3;
-	// canvas.width = width;
+	canvas.width = canvas.height = 911;
 
 	update();
 }
@@ -796,4 +803,10 @@ img.onload = () => {
 
 const formatVec = vec => formatXY(vec.x, vec.y);
 const formatXY  = (x, y) => `(${x.toFixed(2)},${y.toFixed(2)})`
+
+const formatXYAsCoords = (x, y, digits) => {
+	const newX = pxToCoord(x);
+	const newY = pxToCoord(canvas.width - y);
+	return `(X: ${newX.toFixed(digits)}, Y: ${newY.toFixed(digits)})`
+}
 
