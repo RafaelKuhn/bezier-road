@@ -200,7 +200,7 @@ const onMouseDown = (event) => {
 	setClampedRelativeMousePos(event);
 
 	// TODO: remove
-	selFimP.textContent = "começo";
+	// selFimP.textContent = "começo";
 
 	dragState.isDragging = true;
 	if (gameData.isCursorCloseEnough) {
@@ -212,6 +212,9 @@ const onMouseDown = (event) => {
 
 	} else {
 		gameData.hasSelection = false;
+		
+		selInicioP.textContent = ``
+		selFimP.textContent = ``
 	}
 
 	mouseMove(event);
@@ -222,7 +225,7 @@ const onMouseDown = (event) => {
 const onMouseUp = (event) => {
 	// gameData.objBeingHeld = null;
 
-	selFimP.textContent = "\xa0\xa0\xa0fim"
+	// selFimP.textContent = "\xa0\xa0\xa0fim"
 
 	// call once before setting isDragging because it's used to set end of selection state
 	mouseMove(event);
@@ -356,6 +359,17 @@ const mouseMove = (event) => {
 		StartI = spline.length - 1 - 3;
 		EndI = spline.length - 1;
 	}
+
+
+
+	if (gameData.hasSelection) {
+		let curI;
+		curI = clamp(parseInt(gameData.selection.startT), 0, curvesAmount);
+		selInicioP.textContent = `Início: Curva ${curI} t: ${(gameData.selection.startT-curI).toFixed(2)}`
+		curI = clamp(parseInt(gameData.selection.endT), 0, curvesAmount);
+		selFimP.textContent = `\xa0\xa0\xa0Fim: Curva ${curI} t: ${(gameData.selection.endT-curI).toFixed(2)}`
+	}
+
 }
 
 /** @param {Number} p0x @param {Number} p1x  @param {Number} p1x  @param {Number} p1y */
@@ -561,7 +575,7 @@ const drawNormalSelectionCursor = (refCur, derivDump) => {
 	scale(normal, normalScale);
 	scale(inverseNormal, normalScale);
 
-	ctx.strokeStyle = "cyan";
+	ctx.strokeStyle = "lime";
 	drawLineBetween(refCur.dump.x, refCur.dump.y, refCur.dump.x + inverseNormal.x, refCur.dump.y + inverseNormal.y);
 	drawLineBetween(refCur.dump.x, refCur.dump.y, refCur.dump.x + normal.x, refCur.dump.y + normal.y);
 }
@@ -631,9 +645,13 @@ const drawSelection = () => {
 	// TODO: put its at like 4 and see if I can draw the area and if its correct
 	// const its = 4;
 	// const its = 11;
-	const its = 100;
+	const its = 31;
 	const dumpForSelection = { x: 0, y: 0 };
 	const lastIt = {};
+
+
+	let length = 0;
+
 
 	// TODO: MAKE THIS SHIT LESS BAD FOR THE LOVE OF GOD
 	const ithStart = parseInt(lerp(0, its - 1, startT));
@@ -659,6 +677,12 @@ const drawSelection = () => {
 		normalize(dumpForSelection);
 		rotate90DegClockwise(dumpForSelection);
 		scale(dumpForSelection, coordToPx(selectionScale));
+
+		// TODO: call this to debug retarded logic
+		// globalCrappyQueue = []
+		
+		// if (globalCrappyQueue.length > 0)
+		// 	console.log("CRAP " + globalCrappyQueue.length);
 
 		startPathIn(curveX + dumpForSelection.x, curveY + dumpForSelection.y);
 		globalCrappyQueue.push(curveX + dumpForSelection.x);
@@ -765,7 +789,7 @@ const drawSelectionLineSegment = (p0, p1, p2, p3, t, dump, lastItDump) => {
 	copyXY(lastItDump, dump);
 }
 
-const globalCrappyQueue = [];
+let globalCrappyQueue = [];
 
 const drawSelectionAreaSegment = (p0, p1, p2, p3, t, dump, lastItDump) => {
 	bezierOf(p0, p1, p2, p3, t, dump);
