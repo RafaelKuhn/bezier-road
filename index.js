@@ -15,72 +15,47 @@ canvas.width  = canvas.height;
 const img = new Image();
 img.src = "serra.jpg"
 
-// /** @type {HTMLDivElement} */
-// const hidDiv = document.getElementById("hid");
-
 /** @type {HTMLParagraphElement} */
 const curP  = document.getElementById("cur");
 const mouzP = document.getElementById("mouz");
 const selInicioP = document.getElementById("selInicio");
-const selFimP = document.getElementById("selFim");
+const selFimP    = document.getElementById("selFim");
 
 /** @type {HTMLSelectElement} */
 const modeSelect = document.getElementById("modos");
 
 const Modes = {
-	selecao: "MODO selecao",
-	circunferencia: "MODO circunferencia",
-	ancoras: "MODO ancoras",
+	selecao: 1,
+	circunf: 2,
+	ancoras: 3,
 }
 
+let currentMode = Modes[modeSelect.value];
+
 modeSelect.onchange = () => {
-	const mode = Modes[modeSelect.value];
-	console.log(`changed to ${mode}`);
+	const newMode = Modes[modeSelect.value];
+	
+	if (!newMode) {
+		console.error("modo podre selecionado");
+		return;
+	}
+	console.log(`changed to ${newMode} (${modeSelect.value})`);
+	currentMode = newMode;
 }
 
 modeSelect.selectedIndex = 0;
 // TODO: call onChangeMode here
 
 
-// const spanH    = document.getElementById("h");
-// const spanArea = document.getElementById("area");
-// const samplesDiv = document.getElementById("samplesDiv");
-// const samplesContainer = document.getElementById("samples");
-// const nSlider  = document.getElementById("nSlider");
-// const spanN    = document.getElementById("n");
-// const nMax = nSlider.max;
-// const nStart = nSlider.value;
-//
-// const samplePElements = [];
-//
-// const createPForSample = () => {
-// 	const p = document.createElement("p");
-// 	p.classList.add("center");
-//
-// 	return p;
-// }
-//
-// const updateP = (i, x, y) => {
-// 	samplePElements[i].textContent = `${x.toFixed(4)} | ${y.toFixed(4)}`;
-// }
-//
-// const setPasBlank = (i) => {
-// 	samplePElements[i].textContent = "";
-// }
-//
-// for (let i = 0; i < nMax; ++i) {
-// 	const p = createPForSample();
-// 	samplePElements.push(p);
-// 	samplesContainer.appendChild(p)
-// }
-
-
 // constants
-
 const TAU = 6.28318530;
 const NAN = + +'javascript é uma merda kkkkkk';
-const coordinateSystemMax = 400;
+const coordinateSystemMax = 800;
 const coordinateSystemIts = 10;
+const selectionScale = 15;
+
+// TODO: could automate this
+const curvesAmount = 10;
 
 //  ########################################################################
 //  ############################### Beziér #################################
@@ -146,28 +121,11 @@ const spline = [
 ]
 
 
-// TODO: get rid
-const it = 27;
-const globalStart = { x: spline[it].x, y: spline[it].y } ;
-const globalCp1 =   { x: spline[it - 1].x, y: spline[it - 1].y } ;
-const globalCp2 =   { x: spline[it - 2].x, y: spline[it - 2].y } ;
-const globalEnd =   { x: spline[it - 3].x, y: spline[it - 3].y } ;
-
 
 // maths
 const pxToCoord = pixels => pixels / canvas.width        * coordinateSystemMax;
 const coordToPx = coords => coords / coordinateSystemMax * canvas.width;
 
-
-/** @returns {boolean} */
-const getIsValidArea = () => {
-	const maxXVertices = Math.max(globalStart.x, globalEnd.x);
-	const minXVertices = Math.min(globalStart.x, globalEnd.x);
-	return globalCp1.x > minXVertices
-		&& globalCp2.x > minXVertices
-		&& globalCp1.x < maxXVertices
-		&& globalCp2.x < maxXVertices;
-}
 
 //  ########################################################################
 //  ############################## Graphics ################################
@@ -200,8 +158,6 @@ const gameData = {
 		endT:   0,
 	},
 
-	// TODO: get rid of
-	objBeingHeld: null,
 }
 
 const setCurrentCurveAnchors = (p0, p1, p2, p3, t, curr) => {
@@ -400,15 +356,6 @@ const mouseMove = (event) => {
 		StartI = spline.length - 1 - 3;
 		EndI = spline.length - 1;
 	}
-
-
-	// TODO: get rid, holding object
-	const objectBeingHovered = getNearbyClosestObjectOrNull(mousePos);
-	// console.log(objectBeingHovered);
-	
-	document.body.style.cursor = objectBeingHovered == null ? "default" : "pointer";
-
-	update();
 }
 
 /** @param {Number} p0x @param {Number} p1x  @param {Number} p1x  @param {Number} p1y */
@@ -429,16 +376,9 @@ const distanceTo = (point0, point1) => {
 }
 
 
-/** @param {{ x: Number, y: Number }} mousePos */
-const getNearbyClosestObjectOrNull = (mousePos) => {
-	return null;
-
-	if (distanceTo(mousePos, globalStart) < 20) return globalStart;
-	if (distanceTo(mousePos, globalCp1) < 20)   return globalCp1;
-	if (distanceTo(mousePos, globalCp2) < 20)   return globalCp2;
-	if (distanceTo(mousePos, globalEnd) < 20)   return globalEnd;
-	
-	return null;
+const subtract = (vec, x, y) => {
+	vec.x -= x;
+	vec.y -= y;
 }
 
 const scale = (vec, scale) => {
@@ -446,7 +386,25 @@ const scale = (vec, scale) => {
 	vec.y *= scale;
 }
 
-const tryNormalize = vec => {
+const rotate90DegCounterclockwise = vec => {
+	const temp = vec.x;
+	vec.x = -vec.y
+	vec.y =  temp;
+}
+
+const rotate90DegClockwise = vec => {
+	const temp = vec.x;
+	vec.x =  vec.y
+	vec.y = -temp;
+}
+
+const rotate180 = vec => {
+	vec.x = -vec.x;
+	vec.y = -vec.y;
+}
+
+// TODO: fast approximate normalize for 2D
+const normalize = vec => {
 	const len = lengthOfVec(vec);
 	vec.x /= len;
 	vec.y /= len;
@@ -517,42 +475,6 @@ const render = () => {
 
 
 	// DRAWS ARE IN BETWEEN START AND END SEARCH POINT
-	const derivDump = gameData.currentCurve.derivDump;
-	const localDerivDump = { x: derivDump.x, y: derivDump.y };
-
-	startLocal = spline[StartI];
-	for (let i = StartI + 1; i <= EndI; i += 3) {
-		const cp1 = spline[i];
-		const cp2 = spline[i + 1];
-		const end = spline[i + 2];
-
-		// DRAW SELECTION BEZIER
-		// if (gameData.isCursorCloseEnough) {
-		// 	ctx.strokeStyle = "white";
-		// 	drawBezier(startLocal, cp1, cp2, end);
-		// }
-
-		const its = 9;
-		for (let i = 0; i < its; ++i) {
-			const t = i / (its - 1);
-		
-			bezierOf(startLocal, cp1, cp2, end, t, dump);
-
-			derivativeOf(startLocal, cp1, cp2, end, t, derivDump);
-
-			localDerivDump.x = derivDump.x;
-			localDerivDump.y = derivDump.y;
-			tryNormalize(localDerivDump);
-
-			const normalScale = coordToPx(7.5);
-			scale(localDerivDump, normalScale);
-		}
-
-		startLocal = end;
-	}
-
-
-
 	startLocal = spline[StartI];
 
 	setCurrentCurveAnchors(startLocal, spline[1], spline[2], spline[2], 0, 0);
@@ -588,116 +510,103 @@ const render = () => {
 	const distanceThresholdSq = oneQuadrant * oneQuadrant;
 	gameData.isCursorCloseEnough = minDistSq2 < distanceThresholdSq;
 
+
+
+
 	bezierOf(refCur.p0, refCur.p1, refCur.p2, refCur.p3, refCur.t, refCur.dump);
 
-	if (gameData.isCursorCloseEnough || (dragState.isDragging && gameData.hasSelection)) {
-
-		// log real coordinates
-		// const fixedX = refCur.dump.x / canvas.width * coordinateSystemMax;
-		// const fixedY = (canvas.width - refCur.dump.y) / canvas.width * coordinateSystemMax
-		// console.log(`${formatXY(fixedX, fixedY)}`);
-
-		ctx.strokeStyle = "blue";
-		drawDotIn(refCur.dump.x, refCur.dump.y, pointSize * 0.4)
-
-		derivativeOf(refCur.p0, refCur.p1, refCur.p2, refCur.p3, refCur.t, derivDump);
-		// console.log(`deriv ${formatVec(derivDump)}`);
-		tryNormalize(derivDump);
-
-		// normal is the derivative rotated 90 degrees counterclockwise
-		const normal = { x: derivDump.y, y: -derivDump.x }
-
-		const mouseToCurveX = mousePos.x - refCur.dump.x;
-		const mouseToCurveY = mousePos.y - refCur.dump.y;
-
-		// console.log(`n: ${formatVec(normal)} ${formatXY(mouseToCurveX, mouseToCurveY)}`);
-		const dotProd = dot(normal.x, normal.y, mouseToCurveX, mouseToCurveY)
-		if (dotProd < 0) {
-			normal.x = -normal.x;
-			normal.y = -normal.y;
-			derivDump.x = -derivDump.x;
-			derivDump.y = -derivDump.y;
-		}
-
-		const normalScale = coordToPx(15);
-		scale(derivDump, normalScale);
-		scale(normal, normalScale);
-
-		ctx.strokeStyle = "red";
-		drawLineBetween(refCur.dump.x, refCur.dump.y, refCur.dump.x + derivDump.x, refCur.dump.y + derivDump.y);
-
-		ctx.strokeStyle = "lime";
-		drawLineBetween(refCur.dump.x, refCur.dump.y, refCur.dump.x + normal.x, refCur.dump.y + normal.y);
-
-		curP.textContent = `Curva: ${formatXYAsCoords(refCur.dump.x, refCur.dump.y)}`
-	} else {
-		curP.textContent = `Curva: falso`
-	}
-
-
-	// RENDER SELECTION
 	if (dragState.isDragging) {
 		gameData.selection.endT  = refCur.curveIndex + refCur.t;
 	}
 
-	// console.log(gameData.hasSelection);
+
 	if (gameData.hasSelection)
 	{
 		drawSelection();
 	}
 
+	if (gameData.isCursorCloseEnough || (dragState.isDragging && gameData.hasSelection)) {
+		// TODO: draw different for other modes
+		if (currentMode === Modes.selecao) drawNormalSelectionCursor(refCur, gameData.currentCurve.derivDump);
+		else drawNormalAndTanCursor(refCur, gameData.currentCurve.derivDump);
 
+		curP.textContent = `Sobre a curva: ${formatXYAsCoords(refCur.dump.x, refCur.dump.y)}`	
+	} else {
+		curP.textContent = `Sobre a curva: falso`
+	}
 
-
-	// TODO: get rid, draws controllable points
-	// ctx.lineWidth = 3;
-	// ctx.strokeStyle = "black";
-	// ctx.beginPath();
-	// ctx.moveTo(globalStart.x, globalStart.y);
-	// ctx.bezierCurveTo(globalCp1.x, globalCp1.y, globalCp2.x, globalCp2.y, globalEnd.x, globalEnd.y);
-	// ctx.stroke();
-
-	// // dashed lines
-	// ctx.lineWidth = 2;
+	window.requestAnimationFrame(render);
 	// ctx.setLineDash([5, 7]);
-	// // ctx.strokeStyle = "black";
-	// ctx.strokeStyle = "white";
-
-	// ctx.beginPath();
-	// ctx.moveTo(globalStart.x, globalStart.y)
-	// ctx.lineTo(globalCp1.x, globalCp1.y)
-	// ctx.stroke();
-
-	// ctx.beginPath();
-	// ctx.moveTo(globalEnd.x, globalEnd.y)
-	// ctx.lineTo(globalCp2.x, globalCp2.y)
-	// ctx.stroke();
-
-	// // start and end points
-	// ctx.fillStyle = "blue";
-	// ctx.beginPath();
-	// ctx.arc(globalStart.x, globalStart.y, pointSize, 0, TAU);
-	// ctx.arc(globalEnd.x,   globalEnd.y,   pointSize, 0, TAU);
-	// ctx.fill();
-
-	// // control points
-	// ctx.fillStyle = "red";
-	// ctx.beginPath();
-	// ctx.arc(globalCp1.x, globalCp1.y, pointSize, 0, TAU);
-	// ctx.arc(globalCp2.x, globalCp2.y, pointSize, 0, TAU);
-	// ctx.fill();
+}
 
 
+
+const drawNormalSelectionCursor = (refCur, derivDump) => {
+	ctx.strokeStyle = "blue";
+	drawDotIn(refCur.dump.x, refCur.dump.y, pointSize * 0.4)
+
+	derivativeOf(refCur.p0, refCur.p1, refCur.p2, refCur.p3, refCur.t, derivDump);
+	normalize(derivDump);
+
+	// normal is the derivative rotated 90 degrees counterclockwise
+	const normal = { x: 0, y: 0 };
+	copyXY(normal, derivDump);
+	rotate90DegCounterclockwise(normal);
+
+	const inverseNormal = { x: 0, y: 0 };
+	copyXY(inverseNormal, derivDump);
+	rotate90DegClockwise(inverseNormal);
+
+	const normalScale = coordToPx(selectionScale);
+	scale(normal, normalScale);
+	scale(inverseNormal, normalScale);
+
+	ctx.strokeStyle = "cyan";
+	drawLineBetween(refCur.dump.x, refCur.dump.y, refCur.dump.x + inverseNormal.x, refCur.dump.y + inverseNormal.y);
+	drawLineBetween(refCur.dump.x, refCur.dump.y, refCur.dump.x + normal.x, refCur.dump.y + normal.y);
+}
+
+const drawNormalAndTanCursor = (refCur, derivDump) => {
+	ctx.strokeStyle = "blue";
+	drawDotIn(refCur.dump.x, refCur.dump.y, pointSize * 0.4)
+
+	derivativeOf(refCur.p0, refCur.p1, refCur.p2, refCur.p3, refCur.t, derivDump);
+	normalize(derivDump);
+
+	// normal is the derivative rotated 90 degrees counterclockwise
+	const normal = { x: 0, y: 0 }
+	copyXY(normal, derivDump);
+	rotate90DegCounterclockwise(normal);
+
+	const mouseToCurveX = mousePos.x - refCur.dump.x;
+	const mouseToCurveY = mousePos.y - refCur.dump.y;
+
+	// console.log(`n: ${formatVec(normal)} ${formatXY(mouseToCurveX, mouseToCurveY)}`);
+	const dotProd = dot(normal.x, normal.y, mouseToCurveX, mouseToCurveY)
+	if (dotProd < 0) {
+		// TODO: rotate180
+		rotate180(normal);
+		rotate180(derivDump);
+	}
+
+	const normalScale = coordToPx(selectionScale);
+	scale(derivDump, normalScale);
+	scale(normal, normalScale);
+
+	ctx.strokeStyle = "red";
+	drawLineBetween(refCur.dump.x, refCur.dump.y, refCur.dump.x + derivDump.x, refCur.dump.y + derivDump.y);
+
+	// draw normal
+	ctx.strokeStyle = "lime";
+	drawLineBetween(refCur.dump.x, refCur.dump.y, refCur.dump.x + normal.x, refCur.dump.y + normal.y);
 }
 
 const drawSelection = () => {
 
 	if (isApprox(gameData.selection.startT, gameData.selection.endT)) return;
 
-	ctx.strokeStyle = "white";
-
-	let startSplineIndex = parseInt(clamp(gameData.selection.startT, 0, 10));
-	let endSplineIndex   = parseInt(clamp(gameData.selection.endT,   0, 10));
+	let startSplineIndex = parseInt(clamp(gameData.selection.startT, 0, curvesAmount));
+	let endSplineIndex   = parseInt(clamp(gameData.selection.endT,   0, curvesAmount));
 
 	let startT = gameData.selection.startT - startSplineIndex;
 	let endT   = gameData.selection.endT   - endSplineIndex;
@@ -715,44 +624,70 @@ const drawSelection = () => {
 
 	// DRAW start curve from startT to 1
 	const sp0 = spline[realStartI];
-	const sp1 = spline[realStartI+1];
-	const sp2 = spline[realStartI+2];
-	const sp3 = spline[realStartI+3];
+	const sp1 = spline[realStartI + 1];
+	const sp2 = spline[realStartI + 2];
+	const sp3 = spline[realStartI + 3];
 
-	// TODO: put its at like 3 and see if I can draw the area and if its correct
-	const its = 30;
-	const dumpForSelection = {};
+	// TODO: put its at like 4 and see if I can draw the area and if its correct
+	// const its = 4;
+	// const its = 11;
+	const its = 100;
+	const dumpForSelection = { x: 0, y: 0 };
 	const lastIt = {};
 
-	// TODO: could use arclen
-	const ithStart = parseInt(lerp(0, its, startT));
-	// min is because they could have been switched before
-	const ithEnd   = endSplineIndex != startSplineIndex ? its - 1 : parseInt(lerp(0, its, Math.max(startT, endT)));
-	
-	
+	// TODO: MAKE THIS SHIT LESS BAD FOR THE LOVE OF GOD
+	const ithStart = parseInt(lerp(0, its - 1, startT));
+	console.log(ithStart);
+	const ithEnd   = endSplineIndex != startSplineIndex ? its - 1 : (parseInt(lerp(0, its - 1, endT)));
 
-	bezierOf(sp0, sp1, sp2, sp3, startT, dumpForSelection);
-	// copyXY(lastIt, dumpForSelection);
-	startPathIn(dumpForSelection.x, dumpForSelection.y);
+	// TODO: separate function
+	const drawSelectionLine = currentMode == Modes.selecao ? drawSelectionAreaSegment : drawSelectionLineSegment;
 
-	console.log(`draw START curve ${startSplineIndex}`); // index: realStartI
+	// start at the point
+	// TODO: draw tangent from point forwards
+	bezierOf(sp0, sp1, sp2, sp3, ithStart / (its - 1), dumpForSelection);
+
+
+	// globalCrappyQueue.length = 0;
+	if (currentMode != Modes.selecao) {
+		startPathIn(dumpForSelection.x, dumpForSelection.y);
+	} else {
+		const curveX = dumpForSelection.x;
+		const curveY = dumpForSelection.y;
+
+		derivativeOf(sp0, sp1, sp2, sp3, ithStart / (its - 1), dumpForSelection);
+		normalize(dumpForSelection);
+		rotate90DegClockwise(dumpForSelection);
+		scale(dumpForSelection, coordToPx(selectionScale));
+
+		startPathIn(curveX + dumpForSelection.x, curveY + dumpForSelection.y);
+		globalCrappyQueue.push(curveX + dumpForSelection.x);
+		globalCrappyQueue.push(curveY + dumpForSelection.y);
+		console.log(`start ${formatVec(dumpForSelection)}`);
+		
+		rotate180(dumpForSelection);
+		console.log(`end ${formatVec(dumpForSelection)}`);
+		globalCrappyQueue.push(curveX + dumpForSelection.x);
+		globalCrappyQueue.push(curveY + dumpForSelection.y);
+	}
+
+	copyXY(lastIt, dumpForSelection);
+
+	// console.log(`draw START curve ${startSplineIndex}`); // index: realStartI
+
 	// console.log(`start T ${startT.toFixed(2)}, ${ithStart}, inv ${lerp(0, its, startT).toFixed(2)}`);
 	ctx.lineWidth = 4;
 	for (let j = ithStart; j <= ithEnd; ++j) {
 		const t = j / (its - 1);
 
-		bezierOf(sp0, sp1, sp2, sp3, t, dumpForSelection);
-		// drawLineBetween(lastIt.x, lastIt.y, dumpForSelection.x, dumpForSelection.y);
-		addToPathIn(dumpForSelection.x, dumpForSelection.y);
-		copyXY(lastIt, dumpForSelection);
+		drawSelectionLine(sp0, sp1, sp2, sp3, t, dumpForSelection, lastIt);
 	}
-	
+
 
 	// DRAWS curves in between, from t 0 to 1
 	ctx.lineWidth = 4;
 	for (let i = firstFull; i <= lastFull; ++i) {
-
-		console.log(`draw fully curve ${i}`);
+		// console.log(`draw fully curve ${i}`);
 
 		const realI = i * 3;
 		const p0 = spline[realI];
@@ -766,48 +701,89 @@ const drawSelection = () => {
 		for (let j = 1; j < its; ++j) {
 			const t = j / (its - 1);
 
-			bezierOf(p0, p1, p2, p3, t, dumpForSelection);
-			// drawLineBetween(lastIt.x, lastIt.y, dumpForSelection.x, dumpForSelection.y)
-			addToPathIn(dumpForSelection.x, dumpForSelection.y);
-			copyXY(lastIt, dumpForSelection);
+			drawSelectionLine(p0, p1, p2, p3, t, dumpForSelection, lastIt);
 		}
 	
 	}
 
-	const hasEndAndIsDifferentThanStart = endSplineIndex > startSplineIndex;
-	if (hasEndAndIsDifferentThanStart) {
+	const hasMoreThanOneCurve = endSplineIndex > startSplineIndex;
+	if (hasMoreThanOneCurve) {
 
-		console.log(`draw END curve ${endSplineIndex}`); // index realEndI
+		// console.log(`draw END curve ${endSplineIndex}`); // index realEndI
 		const ep0 = spline[realEndI];
 		const ep1 = spline[realEndI + 1];
 		const ep2 = spline[realEndI + 2];
 		const ep3 = spline[realEndI + 3];
-		
-		// draw end curve from 0 to endT
+
 		ctx.lineWidth = 4;
 		// drawBezier(ep0, ep1, ep2, ep3);
 
 		// TODO: check how can I get the last entry here from the last curve to calculate the thing
-		const lastIthEnd = parseInt(lerp(0, its, endT));
+		const lastIthEnd = (parseInt((lerp(0, its - 1, endT))));
 		for (let j = 1; j <= lastIthEnd; ++j) {
 			const t = j / (its - 1);
 
-			bezierOf(ep0, ep1, ep2, ep3, t, dumpForSelection);
-			// drawLineBetween(lastIt.x, lastIt.y, dumpForSelection.x, dumpForSelection.y);
-			addToPathIn(dumpForSelection.x, dumpForSelection.y);
-			copyXY(lastIt, dumpForSelection);
+			drawSelectionLine(ep0, ep1, ep2, ep3, t, dumpForSelection, lastIt);
 		}
 	}
 
-	console.log();
 
 
-	drawPath();
+	// ctx.strokeStyle = "#FFFFFFBA"
+	// ctx.strokeStyle = "#00FFFFBA"
+	ctx.strokeStyle = currentMode == Modes.selecao ? "#00FFFFBA" : "white";
 
+	// TODO: make this less terrible
+	if (currentMode == Modes.selecao) {
+		// dequeue all
+		for (let i = 0; i < globalCrappyQueue.length; i += 2) {
+			const y = globalCrappyQueue.pop();
+			const x = globalCrappyQueue.pop();
+
+			addToPathIn(x, y);
+		}
+
+		ctx.strokeStyle = "#00FFFFBA";
+		ctx.fillStyle   = "#00FFFFBA";
+		// ctx.closePath();
+		ctx.fill();
+		// ctx.stroke();
+	} else {
+		
+		ctx.strokeStyle = "white";
+		ctx.stroke();
+	}
 
 
 	// console.log(`drawing between ${(startSplineIndex * 3).toFixed(2)} and ${(endSplineIndex   * 3 + 3).toFixed(2)}`);
+}
 
+const drawSelectionLineSegment = (p0, p1, p2, p3, t, dump, lastItDump) => {
+	bezierOf(p0, p1, p2, p3, t, dump);
+
+	addToPathIn(dump.x, dump.y);
+	copyXY(lastItDump, dump);
+}
+
+const globalCrappyQueue = [];
+
+const drawSelectionAreaSegment = (p0, p1, p2, p3, t, dump, lastItDump) => {
+	bezierOf(p0, p1, p2, p3, t, dump);
+	const bezX = dump.x;
+	const bezY = dump.y;
+	copyXY(lastItDump, dump);
+
+	derivativeOf(p0, p1, p2, p3, t, dump);
+
+	normalize(dump);
+	rotate90DegClockwise(dump)
+	scale(dump, coordToPx(selectionScale));
+	addToPathIn(bezX + dump.x,  bezY + dump.y);
+	
+	rotate180(dump)
+	// addToPathIn(bezX + dump.x,  bezY + dump.y);
+	globalCrappyQueue.push(bezX + dump.x);
+	globalCrappyQueue.push(bezY + dump.y);
 }
 
 
@@ -854,22 +830,14 @@ const drawGrid = () => {
 
 	for (let i = 1; i < coordinateSystemIts; ++i) {
 		const ourPeriod = period * coordPeriod * i;
+		const ourLen = i / coordinateSystemIts * coordinateSystemMax;
 
 		// horizontal cartesian coordinates
-		ctx.beginPath();
-		ctx.moveTo(ourPeriod, canvas.height);
-		ctx.lineTo(ourPeriod, canvas.height - coordinateSystemMarkLength);
-		ctx.stroke();
-		
-		const ourLen = i / coordinateSystemIts * coordinateSystemMax;
+		drawLineBetween(ourPeriod, canvas.height, ourPeriod, canvas.height - coordinateSystemMarkLength)
 		ctx.fillText(ourLen.toFixed(0), ourPeriod - 6, canvas.height - 15);
 		
 		// vertical cartesian coordinates
-		ctx.beginPath();
-		ctx.moveTo(0, ourPeriod);
-		ctx.lineTo(coordinateSystemMarkLength, ourPeriod);
-		ctx.stroke();
-
+		drawLineBetween(0, ourPeriod, coordinateSystemMarkLength, ourPeriod);
 		ctx.fillText(ourLen.toFixed(0), 15, canvas.height - ourPeriod + 6);
 	}
 }
@@ -909,16 +877,12 @@ const addToPathIn = (x, y) => {
 	ctx.lineTo(x, y);
 }
 
-const drawPath = () => {
-	ctx.stroke();
-}
+// const drawPath = () => {
+// 	ctx.stroke();
+// }
 
 
 
-
-const update = () => {
-	render();
-}
 
 //  ########################################################################
 //  ############################# BOOTSTRAP ################################
@@ -933,7 +897,7 @@ img.onload = () => {
 	// const width  = img.width * 1.3;
 	canvas.width = canvas.height = 911;
 
-	update();
+	window.requestAnimationFrame(render);
 }
 
 
