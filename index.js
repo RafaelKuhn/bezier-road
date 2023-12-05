@@ -20,6 +20,8 @@ const curP  = document.getElementById("cur");
 const mouzP = document.getElementById("mouz");
 const selInicioP = document.getElementById("selInicio");
 const selFimP    = document.getElementById("selFim");
+const selCompP   = document.getElementById("selComp");
+const selAreaP   = document.getElementById("selArea");
 
 /** @type {HTMLSelectElement} */
 const modeSelect = document.getElementById("modos");
@@ -213,8 +215,10 @@ const onMouseDown = (event) => {
 	} else {
 		gameData.hasSelection = false;
 		
-		selInicioP.textContent = ``
-		selFimP.textContent = ``
+		selInicioP.textContent = `falso`
+		selFimP.textContent  = ``
+		selCompP.textContent = ``
+		selAreaP.textContent = ``
 	}
 
 	mouseMove(event);
@@ -384,9 +388,10 @@ const distanceSq = (p0x, p0y, p1x, p1y) => {
  * @param {{ x: Number, y: Number }} point0 
  * @param {{ x: Number, y: Number }} point1 
  */
-const distanceTo = (point0, point1) => {
-	const pointsVec = { x: point1.x - point0.x, y: point1.y - point0.y }
-	return Math.sqrt(pointsVec.x * pointsVec.x + pointsVec.y * pointsVec.y);
+const distance = (point0, point1) => {
+	const pointsVecX = point1.x - point0.x;
+	const pointsVecY = point1.y - point0.y;
+	return Math.sqrt(pointsVecX * pointsVecX + pointsVecY * pointsVecY);
 }
 
 
@@ -650,20 +655,23 @@ const drawSelection = () => {
 	const lastIt = {};
 
 
+	// TODO: calc length
 	let length = 0;
 
 
 	// TODO: MAKE THIS SHIT LESS BAD FOR THE LOVE OF GOD
 	const ithStart = parseInt(lerp(0, its - 1, startT));
-	console.log(ithStart);
 	const ithEnd   = endSplineIndex != startSplineIndex ? its - 1 : (parseInt(lerp(0, its - 1, endT)));
 
 	// TODO: separate function
 	const drawSelectionLine = currentMode == Modes.selecao ? drawSelectionAreaSegment : drawSelectionLineSegment;
 
+	const tStart = ithStart / (its - 1);
 	// start at the point
 	// TODO: draw tangent from point forwards
-	bezierOf(sp0, sp1, sp2, sp3, ithStart / (its - 1), dumpForSelection);
+	bezierOf(sp0, sp1, sp2, sp3, tStart, dumpForSelection);
+	copyXY(lastIt, dumpForSelection);
+	// const firstIt = { x: dumpForSelection.x, y: dumpForSelection.y };
 
 
 	// globalCrappyQueue.length = 0;
@@ -673,7 +681,7 @@ const drawSelection = () => {
 		const curveX = dumpForSelection.x;
 		const curveY = dumpForSelection.y;
 
-		derivativeOf(sp0, sp1, sp2, sp3, ithStart / (its - 1), dumpForSelection);
+		derivativeOf(sp0, sp1, sp2, sp3, tStart, dumpForSelection);
 		normalize(dumpForSelection);
 		rotate90DegClockwise(dumpForSelection);
 		scale(dumpForSelection, coordToPx(selectionScale));
@@ -687,15 +695,11 @@ const drawSelection = () => {
 		startPathIn(curveX + dumpForSelection.x, curveY + dumpForSelection.y);
 		globalCrappyQueue.push(curveX + dumpForSelection.x);
 		globalCrappyQueue.push(curveY + dumpForSelection.y);
-		console.log(`start ${formatVec(dumpForSelection)}`);
 		
 		rotate180(dumpForSelection);
-		console.log(`end ${formatVec(dumpForSelection)}`);
 		globalCrappyQueue.push(curveX + dumpForSelection.x);
 		globalCrappyQueue.push(curveY + dumpForSelection.y);
 	}
-
-	copyXY(lastIt, dumpForSelection);
 
 	// console.log(`draw START curve ${startSplineIndex}`); // index: realStartI
 
@@ -704,14 +708,16 @@ const drawSelection = () => {
 	for (let j = ithStart; j <= ithEnd; ++j) {
 		const t = j / (its - 1);
 
-		drawSelectionLine(sp0, sp1, sp2, sp3, t, dumpForSelection, lastIt);
+		drawSelectionLine(sp0, sp1, sp2, sp3, t, dumpForSelection);
+		const localLen = distance(dumpForSelection, lastIt);
+		length += localLen;
+		copyXY(lastIt, dumpForSelection);
 	}
 
 
 	// DRAWS curves in between, from t 0 to 1
 	ctx.lineWidth = 4;
 	for (let i = firstFull; i <= lastFull; ++i) {
-		// console.log(`draw fully curve ${i}`);
 
 		const realI = i * 3;
 		const p0 = spline[realI];
@@ -722,13 +728,17 @@ const drawSelection = () => {
 		bezierOf(p0, p1, p2, p3, 0, dumpForSelection);
 		copyXY(lastIt, dumpForSelection);
 
+		
 		for (let j = 1; j < its; ++j) {
 			const t = j / (its - 1);
-
-			drawSelectionLine(p0, p1, p2, p3, t, dumpForSelection, lastIt);
-		}
-	
+			
+			drawSelectionLine(p0, p1, p2, p3, t, dumpForSelection);
+			const localLen = distance(dumpForSelection, lastIt);
+			length += localLen;
+			copyXY(lastIt, dumpForSelection);
+		}	
 	}
+
 
 	const hasMoreThanOneCurve = endSplineIndex > startSplineIndex;
 	if (hasMoreThanOneCurve) {
@@ -740,18 +750,23 @@ const drawSelection = () => {
 		const ep3 = spline[realEndI + 3];
 
 		ctx.lineWidth = 4;
-		// drawBezier(ep0, ep1, ep2, ep3);
 
 		// TODO: check how can I get the last entry here from the last curve to calculate the thing
-		const lastIthEnd = (parseInt((lerp(0, its - 1, endT))));
+		const lastIthEnd = (parseInt(lerp(0, its - 1, endT)));
 		for (let j = 1; j <= lastIthEnd; ++j) {
 			const t = j / (its - 1);
 
-			drawSelectionLine(ep0, ep1, ep2, ep3, t, dumpForSelection, lastIt);
+			drawSelectionLine(ep0, ep1, ep2, ep3, t, dumpForSelection);
+			const localLen = distance(dumpForSelection, lastIt);
+			length += localLen;
+			copyXY(lastIt, dumpForSelection);
 		}
 	}
 
 
+	const realLength = pxToCoord(length);
+	selCompP.textContent = `Comprimento: ${realLength.toFixed(2)}`
+	selAreaP.textContent = `\xa0\xa0\xa0\xa0\xa0\xa0\xa0Área: ${(realLength * selectionScale).toFixed(2)}`
 
 	// ctx.strokeStyle = "#FFFFFFBA"
 	// ctx.strokeStyle = "#00FFFFBA"
@@ -782,20 +797,17 @@ const drawSelection = () => {
 	// console.log(`drawing between ${(startSplineIndex * 3).toFixed(2)} and ${(endSplineIndex   * 3 + 3).toFixed(2)}`);
 }
 
-const drawSelectionLineSegment = (p0, p1, p2, p3, t, dump, lastItDump) => {
+const drawSelectionLineSegment = (p0, p1, p2, p3, t, dump) => {
 	bezierOf(p0, p1, p2, p3, t, dump);
-
 	addToPathIn(dump.x, dump.y);
-	copyXY(lastItDump, dump);
 }
 
 let globalCrappyQueue = [];
 
-const drawSelectionAreaSegment = (p0, p1, p2, p3, t, dump, lastItDump) => {
+const drawSelectionAreaSegment = (p0, p1, p2, p3, t, dump) => {
 	bezierOf(p0, p1, p2, p3, t, dump);
 	const bezX = dump.x;
 	const bezY = dump.y;
-	copyXY(lastItDump, dump);
 
 	derivativeOf(p0, p1, p2, p3, t, dump);
 
@@ -808,6 +820,9 @@ const drawSelectionAreaSegment = (p0, p1, p2, p3, t, dump, lastItDump) => {
 	// addToPathIn(bezX + dump.x,  bezY + dump.y);
 	globalCrappyQueue.push(bezX + dump.x);
 	globalCrappyQueue.push(bezY + dump.y);
+
+	dump.x = bezX;
+	dump.y = bezY;
 }
 
 
