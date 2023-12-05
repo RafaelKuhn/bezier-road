@@ -1,2 +1,69 @@
+
+
+
+1000: 1978.22
+ 100: 1978.18
+  50: 1978.08
+  30: 1977.82
+   3: 1977.82
+
+
+
+dizer como calculamos a derivada
+
+
+
+resolver a seleção e desenhar área direito
+
+
+
+
+
+
+
+maybe a debug mode to draw extra crap
+// DEBUG
+
+maybe always paint the white, just ask for the area mode to draw area
+
+
+
+	modos:
+área e comprimento
+circunferência
+âncoras
+
+âncoras pode usar o baguio la q ta no unused
+
+
+
+
+
+
+arc length of the whole curve and segments of it
+	const pxToCoord
+
+
+
+
+rodovia largura de 10 metros
+
+
 made by
 https://portfolio-rafael-kuhn.netlify.app
+
+
+
+
+
+
+############################################################################
+############################################################################
+################################## CHORRO ##################################
+
+
+needs to publish like
+rx4653.00y124.264
+nx4653.00y124.264
+
+

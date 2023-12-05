@@ -18,10 +18,16 @@ img.src = "serra.jpg"
 /** @type {HTMLParagraphElement} */
 const curP  = document.getElementById("cur");
 const mouzP = document.getElementById("mouz");
+
 const selInicioP = document.getElementById("selInicio");
 const selFimP    = document.getElementById("selFim");
 const selCompP   = document.getElementById("selComp");
 const selAreaP   = document.getElementById("selArea");
+
+const circunfP = document.getElementById("circunf")
+
+const selecaoDiv = document.getElementById("selecaoDiv");
+const circunfDiv = document.getElementById("circunferenciaDiv");
 
 /** @type {HTMLSelectElement} */
 const modeSelect = document.getElementById("modos");
@@ -36,13 +42,27 @@ let currentMode = Modes[modeSelect.value];
 
 modeSelect.onchange = () => {
 	const newMode = Modes[modeSelect.value];
-	
-	if (!newMode) {
-		console.error("modo podre selecionado");
-		return;
-	}
-	console.log(`changed to ${newMode} (${modeSelect.value})`);
+	if (!newMode) { console.error("modo podre selecionado"); return; }
+
+	// console.log(`changed to ${newMode} (${modeSelect.value})`);
 	currentMode = newMode;
+
+	if (newMode === Modes.selecao) {
+		selecaoDiv.style.display = "block";
+		circunfDiv.style.display = "none"
+
+	} else if (newMode === Modes.circunf) {
+		selecaoDiv.style.display = "none";
+		circunfDiv.style.display = "block"
+
+	} else if (newMode === Modes.ancoras) {
+		selecaoDiv.style.display = "none";
+		circunfDiv.style.display = "none"
+
+	} else {
+		console.error(`modo lixo: ${modeSelect.value}`)
+	}
+
 }
 
 modeSelect.selectedIndex = 0;
@@ -141,7 +161,6 @@ const coordToPx = coords => coords / coordinateSystemMax * canvas.width;
 const gameData = {
 	isCursorCloseEnough: false,
 
-	hasSelection: false,
 	currentCurve: {
 		p0: { x: 0, y: 0 },
 		p1: { x: 0, y: 0 },
@@ -214,16 +233,19 @@ const onMouseDown = (event) => {
 
 	} else {
 		gameData.hasSelection = false;
-		
-		selInicioP.textContent = `falso`
-		selFimP.textContent  = ``
-		selCompP.textContent = ``
-		selAreaP.textContent = ``
+
+		escondeTextoSelec();
 	}
 
 	mouseMove(event);
 }
 
+const escondeTextoSelec = () => {
+	selInicioP.textContent = `falso`
+	selFimP.textContent  = ``
+	selCompP.textContent = ``
+	selAreaP.textContent = ``
+}
 
 
 const onMouseUp = (event) => {
@@ -431,7 +453,7 @@ const normalize = vec => {
 
 const lengthOfVec = vec => Math.sqrt(vec.x * vec.x + vec.y * vec.y);
 
-const isApprox = (v, dest) => Math.abs(v - dest) < 0.001
+const isApprox = (v, dest) => Math.abs(v - dest) < 0.005
 
 
 //  ########################################################################
@@ -539,7 +561,7 @@ const render = () => {
 	}
 
 
-	if (gameData.hasSelection)
+	if (currentMode != Modes.circunf && gameData.hasSelection)
 	{
 		drawSelection();
 	}
@@ -549,9 +571,11 @@ const render = () => {
 		if (currentMode === Modes.selecao) drawNormalSelectionCursor(refCur, gameData.currentCurve.derivDump);
 		else drawNormalAndTanCursor(refCur, gameData.currentCurve.derivDump);
 
-		curP.textContent = `Sobre a curva: ${formatXYAsCoords(refCur.dump.x, refCur.dump.y)}`	
+		curP.textContent = `Sobre a curva: ${formatXYAsCoords(refCur.dump.x, refCur.dump.y)}`	;
+		circunfP.textContent = `falso`;
 	} else {
-		curP.textContent = `Sobre a curva: falso`
+		curP.textContent = `Sobre a curva: falso`;
+		circunfP.textContent = `falso`;
 	}
 
 	window.requestAnimationFrame(render);
@@ -621,8 +645,6 @@ const drawNormalAndTanCursor = (refCur, derivDump) => {
 }
 
 const drawSelection = () => {
-
-	if (isApprox(gameData.selection.startT, gameData.selection.endT)) return;
 
 	let startSplineIndex = parseInt(clamp(gameData.selection.startT, 0, curvesAmount));
 	let endSplineIndex   = parseInt(clamp(gameData.selection.endT,   0, curvesAmount));
@@ -793,9 +815,12 @@ const drawSelection = () => {
 		ctx.stroke();
 	}
 
+	if (isApprox(length, 0)) {
+		escondeTextoSelec()
+		return;
+	}
 
-	// console.log(`drawing between ${(startSplineIndex * 3).toFixed(2)} and ${(endSplineIndex   * 3 + 3).toFixed(2)}`);
-}
+} // END DRAW SELECTION
 
 const drawSelectionLineSegment = (p0, p1, p2, p3, t, dump) => {
 	bezierOf(p0, p1, p2, p3, t, dump);

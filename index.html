@@ -40,7 +40,7 @@
 			<select name="cars" id="modos">
 				<option value="selecao">Área e Comprimento</option>
 				<option value="circunf">Circunferência</option>
-				<!-- <option value="ancoras">Âncoras</option> -->
+				<option value="ancoras">Âncoras</option>
 			</select>
 
 			<br>
@@ -52,12 +52,24 @@
 			<p id="mouz">Mouse: (X: 0, Y: 0)</p>
 			<p id="cur">Curva: (X: 0, Y: 0)</p>
 			<br>
-			<p>Seleção</p>
-			<p id="selInicio">falso</p>
-			<p id="selFim"></p>
-			<br>
-			<p id="selComp"></p>
-			<p id="selArea"></p>
+
+			<div id="selecaoDiv">
+				<p>Seleção</p>
+				<p id="selInicio">falso</p>
+				<p id="selFim"></p>
+				<br>
+				<p id="selComp"></p>
+				<p id="selArea"></p>
+			</div>
+			
+			<div id="circunferenciaDiv" style="display: none">
+				<p>Circunferência Atual:</p>
+				<p id="circunf">falso</p>
+			</div>
+
+			<div id="ancorasDiv" style="display: none">
+
+			</div>
 
 			<div id="hid">
 			</div>
