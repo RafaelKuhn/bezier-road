@@ -25,6 +25,8 @@ const selCompP   = document.getElementById("selComp");
 const selAreaP   = document.getElementById("selArea");
 
 const circunfP = document.getElementById("circunf")
+const radiusP  = document.getElementById("radius")
+const radiusValP  = document.getElementById("radiusVal")
 
 const selecaoDiv = document.getElementById("selecaoDiv");
 const circunfDiv = document.getElementById("circunferenciaDiv");
@@ -318,6 +320,28 @@ const derivativeOf = (start, cp1, cp2, end, t, dump) => {
 	dump.y = newY;
 }
 
+const accelerationOf = (start, cp1, cp2, end, t, dump) => {
+	const deriv0 =  -6*t + 6
+	const deriv1 =  18*t - 12
+	const deriv2 = -18*t + 6
+	const deriv3 =   6*t
+
+	const newX =
+		start.x * deriv0 +
+	  cp1.x   * deriv1 +
+		cp2.x   * deriv2 +
+		end.x   * deriv3;
+
+	const newY =
+		start.y * deriv0 +
+	  cp1.y   * deriv1 +
+		cp2.y   * deriv2 +
+		end.y   * deriv3;
+
+	dump.x = newX;
+	dump.y = newY;
+}
+
 
 // TODO: game data?
 let ClosestPoint = null;
@@ -446,12 +470,12 @@ const rotate180 = vec => {
 
 // TODO: fast approximate normalize for 2D
 const normalize = vec => {
-	const len = lengthOfVec(vec);
+	const len = magnitudeOf(vec);
 	vec.x /= len;
 	vec.y /= len;
 }
 
-const lengthOfVec = vec => Math.sqrt(vec.x * vec.x + vec.y * vec.y);
+const magnitudeOf = vec => Math.sqrt(vec.x * vec.x + vec.y * vec.y);
 
 const isApprox = (v, dest) => Math.abs(v - dest) < 0.005
 
@@ -480,7 +504,7 @@ const render = () => {
 	let startLocal = spline[0];
 
 	ctx.lineWidth = 2;
-	drawDotIn(startLocal.x, startLocal.y, pointSize);
+	drawCircleIn(startLocal.x, startLocal.y, pointSize);
 
 	for (let i = 1; i < spline.length; i += 3) {
 		const cp1 = spline[i];
@@ -490,7 +514,7 @@ const render = () => {
 		drawBezier(startLocal, cp1, cp2, end);
 
 		ctx.lineWidth = 2;
-		drawDotIn(end.x, end.y, pointSize);
+		drawCircleIn(end.x, end.y, pointSize);
 
 		const its = 6;
 		// 0.2 -> 0.8
@@ -498,7 +522,7 @@ const render = () => {
 			const t = i / (its - 1);
 			
 			bezierOf(startLocal, cp1, cp2, end, t, dump);
-			drawDotIn(dump.x, dump.y, pointSize * 0.3);
+			drawCircleIn(dump.x, dump.y, pointSize * 0.3);
 		}
 
 		startLocal = end;
@@ -567,15 +591,25 @@ const render = () => {
 	}
 
 	if (gameData.isCursorCloseEnough || (dragState.isDragging && gameData.hasSelection)) {
-		// TODO: draw different for other modes
+		ctx.lineWidth = 3;
 		if (currentMode === Modes.selecao) drawNormalSelectionCursor(refCur, gameData.currentCurve.derivDump);
-		else drawNormalAndTanCursor(refCur, gameData.currentCurve.derivDump);
+		else if (currentMode === Modes.ancoras) drawNormalAndTanCursor(refCur, gameData.currentCurve.derivDump);
+		else if (currentMode === Modes.circunf) drawCircleAtCursor(refCur, gameData.currentCurve.derivDump);
+		else console.error(`bad mode selected`);
 
 		curP.textContent = `Sobre a curva: ${formatXYAsCoords(refCur.dump.x, refCur.dump.y)}`	;
-		circunfP.textContent = `falso`;
+
+		// done in drawCircleAtCursor
+		// circunfP.textContent = `falso`;
+
 	} else {
 		curP.textContent = `Sobre a curva: falso`;
+
 		circunfP.textContent = `falso`;
+		radiusP.textContent = ``;
+		radiusValP.textContent = ``
+
+		document.body.style.cursor = 'default';
 	}
 
 	window.requestAnimationFrame(render);
@@ -585,8 +619,10 @@ const render = () => {
 
 
 const drawNormalSelectionCursor = (refCur, derivDump) => {
+	document.body.style.cursor = 'pointer';
+
 	ctx.strokeStyle = "blue";
-	drawDotIn(refCur.dump.x, refCur.dump.y, pointSize * 0.4)
+	drawCircleIn(refCur.dump.x, refCur.dump.y, pointSize * 0.4)
 
 	derivativeOf(refCur.p0, refCur.p1, refCur.p2, refCur.p3, refCur.t, derivDump);
 	normalize(derivDump);
@@ -610,8 +646,10 @@ const drawNormalSelectionCursor = (refCur, derivDump) => {
 }
 
 const drawNormalAndTanCursor = (refCur, derivDump) => {
+	document.body.style.cursor = 'pointer';
+
 	ctx.strokeStyle = "blue";
-	drawDotIn(refCur.dump.x, refCur.dump.y, pointSize * 0.4)
+	drawCircleIn(refCur.dump.x, refCur.dump.y, pointSize * 0.4)
 
 	derivativeOf(refCur.p0, refCur.p1, refCur.p2, refCur.p3, refCur.t, derivDump);
 	normalize(derivDump);
@@ -636,12 +674,86 @@ const drawNormalAndTanCursor = (refCur, derivDump) => {
 	scale(derivDump, normalScale);
 	scale(normal, normalScale);
 
-	ctx.strokeStyle = "red";
+	ctx.strokeStyle = "yellow";
 	drawLineBetween(refCur.dump.x, refCur.dump.y, refCur.dump.x + derivDump.x, refCur.dump.y + derivDump.y);
 
 	// draw normal
 	ctx.strokeStyle = "lime";
 	drawLineBetween(refCur.dump.x, refCur.dump.y, refCur.dump.x + normal.x, refCur.dump.y + normal.y);
+}
+
+const drawCircleAtCursor = (refCur, derivDump) => {
+	document.body.style.cursor = 'default';
+	
+	const normalScale = coordToPx(selectionScale);
+	
+	ctx.strokeStyle = "blue";
+	drawCircleIn(refCur.dump.x, refCur.dump.y, pointSize * 0.4);
+
+	derivativeOf(refCur.p0, refCur.p1, refCur.p2, refCur.p3, refCur.t, derivDump);
+	const speedX   = pxToCoord(derivDump.x);
+	const speedY   = pxToCoord(derivDump.y);
+	const speedLen = pxToCoord(magnitudeOf(derivDump));
+
+	normalize(derivDump);
+	const normalX = derivDump.x;
+	const normalY = derivDump.y;
+
+	scale(derivDump, normalScale * 3);
+	const derivToDrawX = derivDump.x;
+	const derivToDrawY = derivDump.y;
+
+	accelerationOf(refCur.p0, refCur.p1, refCur.p2, refCur.p3, refCur.t, derivDump);
+	const accX = pxToCoord(derivDump.x);
+	const accY = pxToCoord(derivDump.y);
+
+	normalize(derivDump);
+	scale(derivDump, normalScale * 2);
+	const accToDrawX = derivDump.x;
+	const accToDrawY = derivDump.y;
+
+	// ctx.strokeStyle = "snow";
+	// drawLineBetween(refCur.dump.x, refCur.dump.y, refCur.dump.x + derivDump.x, refCur.dump.y + derivDump.y);
+
+	const determinant = speedX * accY - speedY * accX;
+	const curvature = determinant / (speedLen * speedLen * speedLen)
+
+	circunfP.textContent = `${curvature.toFixed(6)}`;
+
+	derivDump.x = normalX;
+	derivDump.y = normalY;
+	scale(derivDump, normalScale);
+	rotate90DegCounterclockwise(derivDump);
+	if (curvature < 0) {
+		rotate180(derivDump);
+	}
+
+	ctx.strokeStyle = "yellow";
+	drawLineBetween(refCur.dump.x, refCur.dump.y, refCur.dump.x + derivDump.x, refCur.dump.y + derivDump.y);
+
+	const radius = Math.abs(1 / curvature);
+	radiusP.textContent = `Raio:`;
+	radiusValP.textContent = `${radius.toFixed(2)}`
+
+	const pxRadius = coordToPx(radius);
+	// const pxRadius = (radius);
+
+	// undo normalScale, scale by pxRadius
+	scale(derivDump, pxRadius / normalScale);
+	const circlePosX = refCur.dump.x + derivDump.x;
+	const circlePosY = refCur.dump.y + derivDump.y;
+
+	ctx.fillStyle = "yellow";
+	fillCircleIn(circlePosX, circlePosY, pointSize * 0.5);
+	drawCircleIn(circlePosX, circlePosY, pxRadius);
+
+	// deriv
+	ctx.strokeStyle = "blue";
+	drawLineBetween(refCur.dump.x, refCur.dump.y, refCur.dump.x + derivToDrawX, refCur.dump.y + derivToDrawY);
+
+	// acceleration
+	ctx.strokeStyle = "snow";
+	drawLineBetween(refCur.dump.x, refCur.dump.y, refCur.dump.x + accToDrawX, refCur.dump.y + accToDrawY);
 }
 
 const drawSelection = () => {
@@ -913,13 +1025,13 @@ const drawBezier = (startLocal, cp1, cp2, end) => {
 	ctx.stroke();
 }
 
-const drawDotIn = (x, y, size) => {
+const drawCircleIn = (x, y, size) => {
 	ctx.beginPath();
 	ctx.arc(x, y, size, 0, TAU);
 	ctx.stroke();
 }
 
-const fillDotIn = (x, y, size) => {
+const fillCircleIn = (x, y, size) => {
 	ctx.beginPath();
 	ctx.arc(x, y, size, 0, TAU);
 	ctx.fill();
