@@ -30,8 +30,11 @@ const circunfP = document.getElementById("circunf")
 const radiusP  = document.getElementById("radius")
 const radiusValP  = document.getElementById("radiusVal")
 
+const noteAncorP = document.getElementById("noteAncor");
+
 const selecaoDiv = document.getElementById("selecaoDiv");
 const circunfDiv = document.getElementById("circunferenciaDiv");
+
 
 /** @type {HTMLSelectElement} */
 const modeSelect = document.getElementById("modos");
@@ -54,14 +57,17 @@ const changeMode = () => {
 	if (newMode === Modes.selecao) {
 		selecaoDiv.style.display = "block";
 		circunfDiv.style.display = "none"
-
+		noteAncorP.style.display = "none"
+		
 	} else if (newMode === Modes.circunf) {
 		selecaoDiv.style.display = "none";
 		circunfDiv.style.display = "block"
-
+		noteAncorP.style.display = "none"
+		
 	} else if (newMode === Modes.ancoras) {
 		selecaoDiv.style.display = "none";
 		circunfDiv.style.display = "none"
+		noteAncorP.style.display = "block"
 
 	} else {
 		console.error(`modo lixo: ${modeSelect.value}`)
@@ -228,6 +234,8 @@ const onMouseDown = (event) => {
 
 	// TODO: remove
 	// selFimP.textContent = "começo";
+
+	if (currentMode !== Modes.selecao) return;
 
 	dragState.isDragging = true;
 	if (gameData.isCursorCloseEnough) {
@@ -495,7 +503,7 @@ const render = () => {
 
 	// reset
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
-	ctx.setLineDash([0]);
+	ctx.setLineDash([]);
 
 	ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
@@ -522,27 +530,16 @@ const render = () => {
 		drawCircleIn(end.x, end.y, pointSize);
 
 		const its = 6;
-		// 0.2 -> 0.8
 		for (let i = 1; i <= its - 2; ++i) {
+			// 0.2 -> 0.8
 			const t = i / (its - 1);
-			
+
 			bezierOf(startLocal, cp1, cp2, end, t, dump);
 			drawCircleIn(dump.x, dump.y, pointSize * 0.3);
 		}
 
 		startLocal = end;
 	}
-
-	if (ClosestPoint) {
-		ctx.strokeStyle = "white";
-		// DEBUG
-		// drawDotIn(ClosestPoint.x, ClosestPoint.y, pointSize * 3);
-	}
-
-
-	// TODO: figure out real closest point in the thing, a way of selecting it
-	// TODO: draw area from there until the next
-
 
 	// DRAWS ARE IN BETWEEN START AND END SEARCH POINT
 	startLocal = spline[StartI];
@@ -581,46 +578,116 @@ const render = () => {
 	gameData.isCursorCloseEnough = minDistSq2 < distanceThresholdSq;
 
 
-
-
 	bezierOf(refCur.p0, refCur.p1, refCur.p2, refCur.p3, refCur.t, refCur.dump);
 
 	if (dragState.isDragging) {
 		gameData.selection.endT  = refCur.curveIndex + refCur.t;
 	}
 
-
-	if (currentMode != Modes.circunf && gameData.hasSelection)
-	{
+	if (currentMode === Modes.selecao && gameData.hasSelection) {
 		drawSelection();
 	}
 
-	if (gameData.isCursorCloseEnough || (dragState.isDragging && gameData.hasSelection)) {
-		ctx.lineWidth = 3;
-		if (currentMode === Modes.selecao) drawNormalSelectionCursor(refCur, gameData.currentCurve.derivDump);
-		else if (currentMode === Modes.ancoras) drawNormalAndTanCursor(refCur, gameData.currentCurve.derivDump);
-		else if (currentMode === Modes.circunf) drawCircleAtCursor(refCur, gameData.currentCurve.derivDump);
-		else console.error(`bad mode selected`);
+	if (currentMode === Modes.ancoras) {
+		drawAnchors();
 
-		curP.textContent = `Sobre a curva: ${formatXYAsCoords(refCur.dump.x, refCur.dump.y)}`	;
-
-		// done in drawCircleAtCursor
-		// circunfP.textContent = `falso`;
-
-	} else {
-		curP.textContent = `Sobre a curva: falso`;
-
-		circunfP.textContent = `falso`;
-		radiusP.textContent = ``;
-		radiusValP.textContent = ``
-
-		document.body.style.cursor = 'default';
+		if (ClosestPoint) {
+			ctx.strokeStyle = "black";
+			drawCircleIn(ClosestPoint.x, ClosestPoint.y, pointSize * 3);
+		}
 	}
 
+	if (gameData.isCursorCloseEnough || (dragState.isDragging && gameData.hasSelection)) {
+		drawCursorBasedOnMode(refCur);
+	} else {
+		clearCursorHtml();
+	}
+	
 	window.requestAnimationFrame(render);
 	// ctx.setLineDash([5, 7]);
 }
 
+const drawAnchors = () => {
+	ctx.strokeStyle = "black"
+	ctx.lineWidth = 3;
+	
+	const margin = 1.5;
+	const dash0 = coordToPx(20 - margin / 2);
+	const dash1 = coordToPx(margin);
+
+	const dashedArr = [dash0, dash1];
+	const emptyArr  = [];
+	ctx.setLineDash(dashedArr);
+
+	let currentFirstPoint = spline[0];
+	const penultimateAnchorIndex = spline.length - 3;
+	for (let i = 1; i <= penultimateAnchorIndex; i += 3) {
+		const start = currentFirstPoint;
+		const cp1   = spline[i];
+		const cp2   = spline[i+1];
+		const end   = spline[i+2];
+
+		ctx.strokeStyle = "white"
+		ctx.setLineDash(emptyArr);
+		drawLineBetween(start.x, start.y, cp1.x, cp1.y);
+
+		ctx.strokeStyle = "black"
+		ctx.setLineDash(dashedArr);
+		drawLineBetween(start.x, start.y, cp1.x, cp1.y);
+
+		ctx.strokeStyle = "white"
+		ctx.setLineDash(emptyArr);
+		drawLineBetween(end.x, end.y, cp2.x, cp2.y);
+
+		ctx.strokeStyle = "black"
+		ctx.setLineDash(dashedArr);
+		drawLineBetween(end.x, end.y, cp2.x, cp2.y);
+
+		ctx.fillStyle = "black"
+		fillCircleIn(currentFirstPoint.x, currentFirstPoint.y, pointSize * 0.5);
+
+		fillCircleIn(cp1.x, cp1.y, pointSize);
+		fillCircleIn(cp2.x, cp2.y, pointSize);
+		
+		ctx.fillStyle = "white"
+		fillCircleIn(cp1.x, cp1.y, pointSize * 0.5);
+		fillCircleIn(cp2.x, cp2.y, pointSize * 0.5);
+
+		currentFirstPoint = end;
+	}
+
+	ctx.fillStyle = "black"
+	fillCircleIn(currentFirstPoint.x, currentFirstPoint.y, pointSize * 0.5);
+
+	ctx.setLineDash(emptyArr);
+}
+
+const drawCursorBasedOnMode = (refCur) => {
+	ctx.lineWidth = 3;
+	if (currentMode === Modes.selecao) {
+		drawNormalSelectionCursor(refCur, gameData.currentCurve.derivDump);
+	}	else if (currentMode === Modes.circunf) {
+		drawOsculatingCircleAtCursor(refCur, gameData.currentCurve.derivDump);
+	}	else if (currentMode === Modes.ancoras) {
+		drawNormalAndTanCursor(refCur, gameData.currentCurve.derivDump);
+	}	else {
+		console.error(`bad mode selected`);
+	}
+
+	// done in drawCircleAtCursor
+	// circunfP.textContent = `falso`;
+	curP.textContent = `Sobre a curva: ${formatXYAsCoords(refCur.dump.x, refCur.dump.y)}`;
+}
+
+const clearCursorHtml = () => {
+	curP.textContent = `Sobre a curva: falso`;
+
+	circunfP.textContent = `falso`;
+	radiusP.textContent = ``;
+	radiusValP.textContent = ``
+
+	document.body.style.cursor = 'default';
+}
 
 
 const drawNormalSelectionCursor = (refCur, derivDump) => {
@@ -646,12 +713,10 @@ const drawNormalSelectionCursor = (refCur, derivDump) => {
 	scale(inverseNormal, normalScale);
 
 	ctx.strokeStyle = "lime";
-	drawLineBetween(refCur.dump.x, refCur.dump.y, refCur.dump.x + inverseNormal.x, refCur.dump.y + inverseNormal.y);
-	drawLineBetween(refCur.dump.x, refCur.dump.y, refCur.dump.x + normal.x, refCur.dump.y + normal.y);
+	drawLineBetween(refCur.dump.x + normal.x, refCur.dump.y + normal.y, refCur.dump.x + inverseNormal.x, refCur.dump.y + inverseNormal.y);
 }
 
 const drawNormalAndTanCursor = (refCur, derivDump) => {
-	document.body.style.cursor = 'pointer';
 
 	ctx.strokeStyle = "blue";
 	drawCircleIn(refCur.dump.x, refCur.dump.y, pointSize * 0.4)
@@ -687,7 +752,7 @@ const drawNormalAndTanCursor = (refCur, derivDump) => {
 	drawLineBetween(refCur.dump.x, refCur.dump.y, refCur.dump.x + normal.x, refCur.dump.y + normal.y);
 }
 
-const drawCircleAtCursor = (refCur, derivDump) => {
+const drawOsculatingCircleAtCursor = (refCur, derivDump) => {
 	document.body.style.cursor = 'default';
 	
 	const normalScale = coordToPx(selectionScale);
@@ -830,7 +895,7 @@ const drawSelection = () => {
 
 
 	// globalCrappyQueue.length = 0;
-	if (currentMode != Modes.selecao) {
+	if (currentMode !== Modes.selecao) {
 		startPathIn(dumpForSelection.x, dumpForSelection.y);
 	} else {
 		const curveX = dumpForSelection.x;
@@ -1097,7 +1162,9 @@ img.onload = () => {
 	window.requestAnimationFrame(render);
 
 	// start in circunferencia
-	modeSelect.value = "circunf";
+	// modeSelect.value = "circunf";
+	// start in ancoras
+	// modeSelect.value = "ancoras";
 	changeMode();
 }
 
