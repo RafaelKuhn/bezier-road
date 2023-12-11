@@ -3,7 +3,9 @@
 //  ################################ HTML ##################################
 //  ########################################################################
 /** @type {HTMLCanvasElement} */
-const canvas = document.getElementById("canvao");
+
+const idCanvao = "canvao";
+const canvas = document.getElementById(idCanvao);
 
 /** @type {CanvasRenderingContext2D} */
 const ctx = canvas.getContext("2d");
@@ -42,7 +44,7 @@ const Modes = {
 
 let currentMode = Modes[modeSelect.value];
 
-modeSelect.onchange = () => {
+const changeMode = () => {
 	const newMode = Modes[modeSelect.value];
 	if (!newMode) { console.error("modo podre selecionado"); return; }
 
@@ -64,8 +66,9 @@ modeSelect.onchange = () => {
 	} else {
 		console.error(`modo lixo: ${modeSelect.value}`)
 	}
-
 }
+
+modeSelect.onchange = changeMode;
 
 modeSelect.selectedIndex = 0;
 // TODO: call onChangeMode here
@@ -74,9 +77,9 @@ modeSelect.selectedIndex = 0;
 // constants
 const TAU = 6.28318530;
 const NAN = + +'javascript é uma merda kkkkkk';
-const coordinateSystemMax = 800;
+const coordinateSystemMax = 400;
 const coordinateSystemIts = 10;
-const selectionScale = 15;
+const selectionScale = 7.5;
 
 // TODO: could automate this
 const curvesAmount = 10;
@@ -218,7 +221,8 @@ const setClampedRelativeMousePos = (event) => {
 
 /** @param {MouseEvent} event */
 const onMouseDown = (event) => {
-	if (event.button != 0) return;
+	if (event.button !== 0) return;
+	if (event.target.id !== idCanvao) return;
 
 	setClampedRelativeMousePos(event);
 
@@ -236,13 +240,13 @@ const onMouseDown = (event) => {
 	} else {
 		gameData.hasSelection = false;
 
-		escondeTextoSelec();
+		hideSelectedText();
 	}
 
 	mouseMove(event);
 }
 
-const escondeTextoSelec = () => {
+const hideSelectedText = () => {
 	selInicioP.textContent = `falso`
 	selFimP.textContent  = ``
 	selCompP.textContent = ``
@@ -477,7 +481,8 @@ const normalize = vec => {
 
 const magnitudeOf = vec => Math.sqrt(vec.x * vec.x + vec.y * vec.y);
 
-const isApprox = (v, dest) => Math.abs(v - dest) < 0.005
+const isApprox = (v, dest) => isApproxThreshold(v, dest, 0.005);
+const isApproxThreshold = (v, dest, threshold) => Math.abs(v - dest) < threshold;
 
 
 //  ########################################################################
@@ -712,40 +717,59 @@ const drawCircleAtCursor = (refCur, derivDump) => {
 	const accToDrawX = derivDump.x;
 	const accToDrawY = derivDump.y;
 
-	// ctx.strokeStyle = "snow";
-	// drawLineBetween(refCur.dump.x, refCur.dump.y, refCur.dump.x + derivDump.x, refCur.dump.y + derivDump.y);
-
 	const determinant = speedX * accY - speedY * accX;
 	const curvature = determinant / (speedLen * speedLen * speedLen)
 
-	circunfP.textContent = `${curvature.toFixed(6)}`;
-
-	derivDump.x = normalX;
-	derivDump.y = normalY;
-	scale(derivDump, normalScale);
-	rotate90DegCounterclockwise(derivDump);
-	if (curvature < 0) {
-		rotate180(derivDump);
-	}
-
-	ctx.strokeStyle = "yellow";
-	drawLineBetween(refCur.dump.x, refCur.dump.y, refCur.dump.x + derivDump.x, refCur.dump.y + derivDump.y);
-
 	const radius = Math.abs(1 / curvature);
-	radiusP.textContent = `Raio:`;
-	radiusValP.textContent = `${radius.toFixed(2)}`
 
 	const pxRadius = coordToPx(radius);
-	// const pxRadius = (radius);
 
-	// undo normalScale, scale by pxRadius
-	scale(derivDump, pxRadius / normalScale);
-	const circlePosX = refCur.dump.x + derivDump.x;
-	const circlePosY = refCur.dump.y + derivDump.y;
+	if (isApproxThreshold(curvature, 0, 0.0003)) {
+		// draw line
+		circunfP.textContent = `≅0 m⁻¹`;
 
-	ctx.fillStyle = "yellow";
-	fillCircleIn(circlePosX, circlePosY, pointSize * 0.5);
-	drawCircleIn(circlePosX, circlePosY, pxRadius);
+		derivDump.x = normalX;
+		derivDump.y = normalY;
+		scale(derivDump, canvas.width * 2);
+		const lineStartX = refCur.dump.x + derivDump.x;
+		const lineStartY = refCur.dump.y + derivDump.y;
+
+		rotate180(derivDump);
+		const lineEndX = refCur.dump.x + derivDump.x;
+		const lineEndY = refCur.dump.y + derivDump.y;
+
+		ctx.strokeStyle = "orange";
+		drawLineBetween(lineStartX, lineStartY, lineEndX, lineEndY);
+
+		radiusP.textContent = `Raio:`;
+		radiusValP.textContent = `lim r → ∞ m`
+	} else {
+		derivDump.x = normalX;
+		derivDump.y = normalY;
+		scale(derivDump, normalScale);
+		rotate90DegCounterclockwise(derivDump);
+		if (curvature < 0) {
+			rotate180(derivDump);
+		}
+
+		// draw circle and normal
+		ctx.strokeStyle = "yellow";
+		drawLineBetween(refCur.dump.x, refCur.dump.y, refCur.dump.x + derivDump.x, refCur.dump.y + derivDump.y);
+
+		// undoes normalScale, scales by pxRadius
+		scale(derivDump, pxRadius / normalScale);
+		const circlePosX = refCur.dump.x + derivDump.x;
+		const circlePosY = refCur.dump.y + derivDump.y;
+
+		circunfP.textContent = `${curvature.toFixed(4)} m⁻¹`;
+		ctx.fillStyle = "yellow";
+		fillCircleIn(circlePosX, circlePosY, pointSize * 0.5);
+		drawCircleIn(circlePosX, circlePosY, pxRadius);
+
+		radiusP.textContent = `Raio:`;
+		radiusValP.textContent = `${radius.toFixed(2)} m`
+	}
+
 
 	// deriv
 	ctx.strokeStyle = "blue";
@@ -788,10 +812,7 @@ const drawSelection = () => {
 	const dumpForSelection = { x: 0, y: 0 };
 	const lastIt = {};
 
-
-	// TODO: calc length
 	let length = 0;
-
 
 	// TODO: MAKE THIS SHIT LESS BAD FOR THE LOVE OF GOD
 	const ithStart = parseInt(lerp(0, its - 1, startT));
@@ -899,8 +920,8 @@ const drawSelection = () => {
 
 
 	const realLength = pxToCoord(length);
-	selCompP.textContent = `Comprimento: ${realLength.toFixed(2)}`
-	selAreaP.textContent = `\xa0\xa0\xa0\xa0\xa0\xa0\xa0Área: ${(realLength * selectionScale).toFixed(2)}`
+	selCompP.textContent = `Comprimento: ${realLength.toFixed(4)} m`
+	selAreaP.textContent = `\xa0\xa0\xa0\xa0\xa0\xa0\xa0Área: ${(realLength * selectionScale * 2).toFixed(2)} m²`
 
 	// ctx.strokeStyle = "#FFFFFFBA"
 	// ctx.strokeStyle = "#00FFFFBA"
@@ -928,7 +949,7 @@ const drawSelection = () => {
 	}
 
 	if (isApprox(length, 0)) {
-		escondeTextoSelec()
+		hideSelectedText()
 		return;
 	}
 
@@ -1074,6 +1095,10 @@ img.onload = () => {
 	canvas.width = canvas.height = 911;
 
 	window.requestAnimationFrame(render);
+
+	// start in circunferencia
+	modeSelect.value = "circunf";
+	changeMode();
 }
 
 
