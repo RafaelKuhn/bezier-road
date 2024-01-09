@@ -5,7 +5,7 @@
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<link rel="stylesheet" href="index.css">
-	<link rel="icon" href="icon.png">
+	<link rel="icon" href="/favicon.png">
 	<title>Beziér Road</title>
 </head>
 <body>
@@ -13,49 +13,25 @@
 	<div id="container">
 		<canvas width="400" height="400" id="canvao"></canvas>
 		<div id="right">
-			<!-- <p>N: <span id="n"></span></p>
-			<input id="nSlider" type="range" value="4" min="2" max="31"></input>
-			
-			<br><br><br>
-			<p>H: <span id="h"></span></p>
-			
-			<br>
-			<p>Area: <span id="area"></span></p>
-			
-			<div id="samplesDiv">
-				
-				<br><br>
-				<p class="center">Samples</p><br>
-				<p class="center">X | Y</p>
-				
-				<hr>
-				<p class="margin-up"></p>
-				<div id="samples">
-				</div>
 
-			</div> -->
-
-			<!-- <h2>Modo</h2> -->
-			<p>Modo</p>
+			<p>Mode</p>
 			<select name="cars" id="modos">
-				<option value="selecao">Área e Comprimento</option>
-				<option value="circunf">Curvatura</option>
-				<option value="ancoras">Âncoras</option>
+				<option value="selecao">Area and Length</option>
+				<option value="circunf">Curvature</option>
+				<option value="ancoras">Anchors</option>
 			</select>
 
 			<br>
 			<br>
 			<br>
-			
-			<p>Dados</p>
-			<br>
+
 			<p id="mouz">Mouse: (X: 0, Y: 0)</p>
-			<p id="cur">Curva: (X: 0, Y: 0)</p>
+			<p id="cur">Curve: (X: 0, Y: 0)</p>
 			<br>
 
 			<div id="selecaoDiv">
-				<p>Seleção Atual:</p>
-				<p id="selInicio">falso</p>
+				<p>Current Selection:</p>
+				<p id="selInicio">false</p>
 				<p id="selFim"></p>
 				<br>
 				<p id="selComp"></p>
@@ -63,22 +39,22 @@
 			</div>
 			
 			<div id="circunferenciaDiv" style="display: none">
-				<p>Curvatura Atual:</p>
-				<p id="circunf">falso</p>
+				<p>Current Curvature:</p>
+				<p id="circunf">false</p>
 				<br>
-				<p id="radius">Raio:</p>
+				<p id="radius">Radius:</p>
 				<p id="radiusVal"></p>
 			</div>
 
 			<p id="noteAncor">
-				Curvas: 11
+				Curves: 11
 				<br>
-				Pontos Controle: 12
+				Control Points: 12
 				<br>
-				Pontos Âncora: &nbsp&nbsp22
+				Anchor Points: &nbsp&nbsp22
 				<br>
 				<br>
-				(marcas nas linhas a cada 20m)
+				(ruler marks for each 20m)
 			</p>
 
 			<!-- <input type="color" id="col"> <input> -->

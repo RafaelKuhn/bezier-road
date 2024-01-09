@@ -7,6 +7,15 @@
 const idCanvao = "canvao";
 const canvas = document.getElementById(idCanvao);
 
+const aboveText = "Above the curve";
+const falseText = "false";
+const startText = "Start";
+const endText   = "\xa0\xa0End";
+const curveText = "Curve";
+const widthText = "Width";
+const areaText  = "\xa0Area";
+const radiusText = "Radius";
+
 /** @type {CanvasRenderingContext2D} */
 const ctx = canvas.getContext("2d");
 const canvasRect = canvas.getBoundingClientRect();
@@ -255,7 +264,7 @@ const onMouseDown = (event) => {
 }
 
 const hideSelectedText = () => {
-	selInicioP.textContent = `falso`
+	selInicioP.textContent = falseText
 	selFimP.textContent  = ``
 	selCompP.textContent = ``
 	selAreaP.textContent = ``
@@ -293,7 +302,6 @@ const bezierOf = (start, cp1, cp2, end, t, dump) => {
 
 	const newX =
 		start.x * bernstein0 +
-
 		cp1.x   * bernstein1 +
 		cp2.x   * bernstein2 +
 		end.x   * bernstein3;
@@ -427,9 +435,9 @@ const mouseMove = (event) => {
 	if (gameData.hasSelection) {
 		let curI;
 		curI = clamp(parseInt(gameData.selection.startT), 0, curvesAmount);
-		selInicioP.textContent = `Início: Curva ${curI} t: ${(gameData.selection.startT-curI).toFixed(2)}`
+		selInicioP.textContent = `${startText}: ${curveText} ${curI} t: ${(gameData.selection.startT-curI).toFixed(2)}`
 		curI = clamp(parseInt(gameData.selection.endT), 0, curvesAmount);
-		selFimP.textContent = `\xa0\xa0\xa0Fim: Curva ${curI} t: ${(gameData.selection.endT-curI).toFixed(2)}`
+		selFimP.textContent = `${endText}: ${curveText} ${curI} t: ${(gameData.selection.endT-curI).toFixed(2)}`
 	}
 
 }
@@ -676,13 +684,15 @@ const drawCursorBasedOnMode = (refCur) => {
 
 	// done in drawCircleAtCursor
 	// circunfP.textContent = `falso`;
-	curP.textContent = `Sobre a curva: ${formatXYAsCoords(refCur.dump.x, refCur.dump.y)}`;
+	// curP.textContent = `Sobre a curva: ${formatXYAsCoords(refCur.dump.x, refCur.dump.y)}`;
+	curP.textContent = `${aboveText}: ${formatXYAsCoords(refCur.dump.x, refCur.dump.y)}`;
 }
 
 const clearCursorHtml = () => {
-	curP.textContent = `Sobre a curva: falso`;
+	// curP.textContent = `Sobre a curva: falso`;
+	curP.textContent = `${aboveText}: ${falseText}`;
 
-	circunfP.textContent = `falso`;
+	circunfP.textContent = falseText;
 	radiusP.textContent = ``;
 	radiusValP.textContent = ``
 
@@ -806,7 +816,7 @@ const drawOsculatingCircleAtCursor = (refCur, derivDump) => {
 		ctx.strokeStyle = "orange";
 		drawLineBetween(lineStartX, lineStartY, lineEndX, lineEndY);
 
-		radiusP.textContent = `Raio:`;
+		radiusP.textContent = `${radiusText}:`;
 		radiusValP.textContent = `lim r → ∞ m`
 	} else {
 		derivDump.x = normalX;
@@ -831,7 +841,7 @@ const drawOsculatingCircleAtCursor = (refCur, derivDump) => {
 		fillCircleIn(circlePosX, circlePosY, pointSize * 0.5);
 		drawCircleIn(circlePosX, circlePosY, pxRadius);
 
-		radiusP.textContent = `Raio:`;
+		radiusP.textContent = `${radiusText}:`;
 		radiusValP.textContent = `${radius.toFixed(2)} m`
 	}
 
@@ -985,8 +995,8 @@ const drawSelection = () => {
 
 
 	const realLength = pxToCoord(length);
-	selCompP.textContent = `Comprimento: ${realLength.toFixed(4)} m`
-	selAreaP.textContent = `\xa0\xa0\xa0\xa0\xa0\xa0\xa0Área: ${(realLength * selectionScale * 2).toFixed(2)} m²`
+	selCompP.textContent = `${widthText}: ${realLength.toFixed(4)} m`
+	selAreaP.textContent = `${areaText}: ${(realLength * selectionScale * 2).toFixed(2)} m²`
 
 	// ctx.strokeStyle = "#FFFFFFBA"
 	// ctx.strokeStyle = "#00FFFFBA"
