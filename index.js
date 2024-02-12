@@ -7,7 +7,7 @@
 const idCanvao = "canvao";
 const canvas = document.getElementById(idCanvao);
 
-const aboveText = "Above the curve";
+const aboveText = "Over the curve";
 const falseText = "false";
 const startText = "Start";
 const endText   = "\xa0\xa0End";
